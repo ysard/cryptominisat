@@ -27,7 +27,7 @@ from setuptools import setup, Extension
 from setuptools.command.test import test as TestCommand
 from distutils import sysconfig
 
-__PACKAGE_VERSION__ = "0.1.3"
+__PACKAGE_VERSION__ = "0.1.4"
 __LIBRARY_VERSION__ = "${CMS_FULL_VERSION}"
 
 
@@ -153,12 +153,12 @@ modules = [
             # -march=cpu-type implies -mtune=cpu-type.
             # See CPU type with:
             # gcc -march=native -Q --help=target | grep march
-            "-march=native",
+            #"-march=native",
             # Produce code optimized by enabling all
             # instruction subsets supported by the local machine
             # See CPU type with:
             # gcc -mtune=native -Q --help=target | grep march
-            "-mtune=native",
+            #"-mtune=native",
 
             # Release/Debug flags
             "-Ofast",

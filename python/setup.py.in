@@ -23,13 +23,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from distutils.core import setup, Extension
-from distutils.cmd import Command
+from setuptools import setup, Extension
+from setuptools.command.test import test as TestCommand
 from distutils import sysconfig
 
-__PACKAGE_VERSION__ = "0.1.1"
+__PACKAGE_VERSION__ = "0.1.3"
 __LIBRARY_VERSION__ = "${CMS_FULL_VERSION}"
 
+
+################################################################################
 
 # Delete unwanted flags for C compilation
 # Distutils has the lovely feature of providing all the same flags that
@@ -39,23 +41,24 @@ __LIBRARY_VERSION__ = "${CMS_FULL_VERSION}"
 # flag from the argument list used by the compile function.
 # That's the theory anyway, the docs are too poor to actually guide you
 # through what you have to do to make that happen.
-d = sysconfig.get_config_vars()
-for k, v in d.items():
-    for unwanted in ('-Wstrict-prototypes', '-DNDEBUG', ' -g ',
-                     '-O2', '-D_FORTIFY_SOURCE=2', '-fstack-protector-strong'):
-        if str(v).find(unwanted) != -1:
-            v = d[k] = str(v).replace(unwanted, ' ')
-
-################################################################################
 
 def _init_posix(init):
     def wrapper():
         init()
         config_vars = sysconfig.get_config_vars()  # by reference
+
         if config_vars["MACHDEP"].startswith("sun"):
             # Sun needs forced gcc/g++ compilation
             config_vars['CC'] = 'gcc'
             config_vars['CXX'] = 'g++'
+
+        if config_vars["MACHDEP"].startswith("linux"):
+            # Remove GDB specific debug informations
+            # Remove -Wstrict-prototypes which is valid for C but not for C++
+            for k, v in config_vars.items():
+                for unwanted in (' -g ', '-Wstrict-prototypes',):
+                    if str(v).find(unwanted) != -1:
+                        v = config_vars[k] = str(v).replace(unwanted, ' ')
 
     return wrapper
 
@@ -63,19 +66,14 @@ sysconfig._init_posix = _init_posix(sysconfig._init_posix)
 
 ################################################################################
 
-class TestCommand(Command):
+class Test(TestCommand):
     """Call tests with the custom 'python setup.py test' command."""
 
-    user_options = []
-
     def initialize_options(self):
-        pass
+        TestCommand.initialize_options(self)
+        self.pytest_args = []
 
-    def finalize_options(self):
-        pass
-
-    def run(self):
-
+    def run_tests(self):
         import tests as tp
         tp.run()
 
@@ -198,8 +196,6 @@ setup(
     ext_modules = modules,
     description = "Bindings to CryptoMiniSat {} (a SAT solver)".\
         format(__LIBRARY_VERSION__),
-    long_description = open('${CMAKE_CURRENT_SOURCE_DIR}/README.rst').read(),
-    cmdclass={
-        'test': TestCommand
-    }
+    long_description = open('README.rst').read(),
+    cmdclass={'test': Test}
 )

@@ -83,7 +83,6 @@ class TestCommand(Command):
 
 # Source files
 cryptoms_lib_files = [
-    "GitSHA1.cpp",
     "cnf.cpp",
     "propengine.cpp",
     "varreplacer.cpp",
@@ -120,15 +119,17 @@ cryptoms_lib_files = [
     "searchstats.cpp",
     "xorfinder.cpp",
     "cryptominisat_c.cpp",
+    "GitSHA1.cpp",
     "cryptominisat.cpp",
+
 ]
 
 modules = [
     Extension(
         "pycryptosat",
-        ["${CMAKE_CURRENT_BINARY_DIR}/src/pycryptosat.cpp"] + ['${CMAKE_CURRENT_BINARY_DIR}/src/' + fd for fd in cryptoms_lib_files],
+        ["src/pycryptosat.cpp"] + ['src/' + fd for fd in cryptoms_lib_files],
         language = "c++",
-        include_dirs=['${CMAKE_CURRENT_BINARY_DIR}/src', '${CMAKE_CURRENT_BINARY_DIR}'],
+        include_dirs=['src', '.'],
         define_macros=[
             ('LIBRARY_VERSION', '"' + __LIBRARY_VERSION__ + '"')
         ],

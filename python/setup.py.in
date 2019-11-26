@@ -30,9 +30,7 @@ from collections import defaultdict
 import sys
 from setuptools import setup, Extension, dist
 from setuptools.command.build_ext import build_ext as _build_ext
-
-from distutils.cmd import Command
-# from setuptools.command.test import test as TestCommand
+from setuptools.command.test import test as Test
 
 __PACKAGE_VERSION__ = "0.2.1"
 __LIBRARY_VERSION__ = "${CMS_FULL_VERSION}"
@@ -155,30 +153,10 @@ if sys.platform != 'win32':
 
 ################################################################################
 
-class TestCommand(Command):
+class TestCommand(Test):
     """Call tests with the custom 'python setup.py test' command."""
 
-    user_options = []
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
     def run(self):
-
-        import os
-        import glob
-        print("our CWD is:", os.getcwd(), "files here: ", glob.glob("*"))
-        sys.path.append(os.getcwd())
-        path2 = os.path.join(os.getcwd(), "..")
-        path2 = os.path.join(path2, "lib")
-        path2 = os.path.normpath(path2)
-        print("path2 is:", path2)
-        sys.path.append(path2)
-        print("our sys.path is", sys.path)
-
         import tests as tp
         tp.run()
 

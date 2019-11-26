@@ -1,8 +1,10 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
 #
 # CryptoMiniSat
 #
 # Copyright (c) 2009-2017, Mate Soos. All rights reserved.
-# Copyright (c) 2017, Pierre Vignet
+# Copyright (c) 2017-2019, Pierre Vignet
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,65 +24,136 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-
-import sys
-import os
-import platform
-from distutils.core import setup, Extension
+from __future__ import print_function
 from distutils import sysconfig
+from collections import defaultdict
+import sys
+from setuptools import setup, Extension, dist
+from setuptools.command.build_ext import build_ext as _build_ext
+
 from distutils.cmd import Command
+# from setuptools.command.test import test as TestCommand
 
-__PACKAGE_VERSION__ = "0.2.0"
+__PACKAGE_VERSION__ = "0.2.1"
 __LIBRARY_VERSION__ = "${CMS_FULL_VERSION}"
-os.environ["CC"] = "${CMAKE_C_COMPILER}"
-os.environ["CXX"] = "${CMAKE_CXX_COMPILER}"
 
-cconf = """${PY_C_CONFIG}""".split(" ")
-ldconf = """${PY_LD_CONFIG}""".split(" ")
-is_apple = """${APPLE}"""
+################################################################################
 
-def cleanup(dat):
-    ret = []
-    for elem in dat:
-        elem = elem.strip()
-        if elem != "" and not "flto" in elem:
-            ret.append(elem)
+# Definition of various arguments specific to compilers and platforms
+EXTRA_ARGS = {
+    'msvc': {
+        'extra_compile_args':
+            ['/std:c++11', '/LTCG', '/GL', '/O2', '/W4', '/GS-'],
+        'extra_link_args':
+            ['/std:c++11', '/LTCG', '/GL', '/O2', '/W4', '/GS-'],
+    },
+    'mingw32': {
+        # 06/2018: flto is still broken on Windows
+        'extra_compile_args': ['-std=c++11', '-O3',
+                               '-Wno-return-type',
+                               '-Wno-unused-variable',
+                               '-Wno-unused-but-set-variable',
+                               '-fvisibility=hidden'],
+        'extra_link_args': ['-O3', '-Wl,--as-needed'],
+        # Macros used to fix compilation via mingw32
+        # hypot:
+        # https://stackoverflow.com/questions/10660524/error-building-boost-1-49-0-with-gcc-4-7-0/
+        # pyconfig.h on Windows defines
+        # hypot as _hypot which subsequently cripples the declaration of hypot
+        # in <math.h> and ultimately breaks the using declaration in <cmath>
+        #
+        # MS_WIN64:
+        # https://stackoverflow.com/questions/2842469/python-undefined-reference-to-imp-py-initmodule4
+        # Fix undefined reference to `_imp __Py_InitModule4'
+        'define_macros': [('_hypot', 'hypot'), ('MS_WIN64', None)],
+    },
+    'unix': {
+        'extra_compile_args': ['-std=c++11', '-flto', '-O3',
+                               '-Wno-return-type',
+                               '-Wno-unused-variable',
+                               '-Wno-unused-but-set-variable',
+                               '-fvisibility=hidden'],
+        'extra_link_args': ['-flto', '-O3', '-Wl,--as-needed'],
+    },
+    'unix_darwin': {
+        # linking to Clang's C++ library libc++, rather than GCC's libstdc++
+        # (avoid missing headers like <cstdint>)
+        # libc++ is available starting from OSX 10.9
+        'extra_compile_args': ['-stdlib=libc++', '-std=c++14', '-flto', '-O3',
+                               '-Wno-return-type',
+                               '-Wno-unused-variable',
+                               '-Wno-unused-but-set-variable',
+                               '-fvisibility=hidden'],
+        'extra_link_args': ['-stdlib=libc++', '-flto', '-O3'],
+    },
+}
+EXTRA_ARGS = defaultdict(lambda: defaultdict(list), EXTRA_ARGS)
 
-#    if is_apple != "":
-#        for x in ret:
-#            if x == "-lpython" or x == "-lframework":
-#                x = "-undefined dynamic_lookup"
 
-    return ret
-    # return []
+class build_ext(_build_ext):
+    """Wrapper for build_ext class from setuptools.
 
-cconf = cleanup(cconf)
-ldconf = cleanup(ldconf)
-# print "Extra C flags from python-config:", cconf
-# print "Extra libraries from python-config:", ldconf
+    This wrapper is used to set specific compiler args in order to build
+    the extensions.
+    """
+    def build_extensions(self):
+        """Assign arguments to the current compiler.
 
+        Possible compilers: msvc, mingw32, unix (gcc/clang under linux)
+        """
+        compiler = self.compiler.compiler_type
+
+        # Use specific flags for OSX which has a "unix" compiler_type
+        if sys.platform == 'darwin':
+            compiler += '_darwin'
+
+        for ext in self.extensions:
+            for extra_arg, args in EXTRA_ARGS[compiler].items():
+                # Just add custom args without ovewrite previous ones
+                ext.__dict__[extra_arg] = ext.__dict__[extra_arg] or []
+                ext.__dict__[extra_arg] += args
+        _build_ext.build_extensions(self)
+
+################################################################################
+
+# Delete unwanted flags for C compilation
+# Distutils has the lovely feature of providing all the same flags that
+# Python was compiled with. The result is that adding extra flags is easy,
+# but removing them is a total pain. Doing so involves subclassing the
+# compiler class, catching the arguments and manually removing the offending
+# flag from the argument list used by the compile function.
+# That's the theory anyway, the docs are too poor to actually guide you
+# through what you have to do to make that happen.
 
 def _init_posix(init):
-    """
-    Forces g++ instead of gcc on most systems
-    credits to eric jones (eric@enthought.com) (found at Google Groups)
-    """
+    """Initialize the module as appropriate for POSIX systems."""
     def wrapper():
         init()
-
         config_vars = sysconfig.get_config_vars()  # by reference
         if config_vars["MACHDEP"].startswith("sun"):
             # Sun needs forced gcc/g++ compilation
             config_vars['CC'] = 'gcc'
             config_vars['CXX'] = 'g++'
 
-        config_vars['CFLAGS'] = '-g -W -Wall -Wno-deprecated -std=c++11'
-        config_vars['OPT'] = '-g -W -Wall -Wno-deprecated -std=c++11'
-
+        if config_vars["MACHDEP"].startswith("linux") \
+        or config_vars["MACHDEP"] == "cygwin":
+            # Remove GDB specific debug informations
+            # Remove -Wstrict-prototypes which is valid for C but not for C++
+            for k, v in config_vars.items():
+                for unwanted in (' -g ', '-Wstrict-prototypes'):
+                    if str(v).find(unwanted) != -1:
+                        v = config_vars[k] = str(v).replace(unwanted, ' ')
     return wrapper
 
-sysconfig._init_posix = _init_posix(sysconfig._init_posix)
+if sys.platform != 'win32':
+    # Posix platforms only:
+    # Avoid ImportError: _sysconfigdata on Windows
+    sysconfig._init_posix = _init_posix(sysconfig._init_posix)
 
+    # Thus, when build_ext is imported, _init_posix() is never called automatically
+    sysconfig._init_posix()
+
+################################################################################
 
 class TestCommand(Command):
     """Call tests with the custom 'python setup.py test' command."""
@@ -109,50 +182,44 @@ class TestCommand(Command):
         import tests as tp
         tp.run()
 
+################################################################################
 
-__version__ = '@PROJECT_VERSION@'
+# Source files
+SOURCES = [${PYTHON_STRIPPED_SOURCES}]
 
-# needed because Mac doesn't make use of runtime_library_dirs
-extra_link_args = list(ldconf)
-if platform.system() == 'Darwin':
-    extra_link_args.append('-Wl,-rpath,'+"${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-
-modules = dict(
-    name = "pycryptosat",
-    sources = ["${CMAKE_CURRENT_SOURCE_DIR}/src/pycryptosat.cpp"],
-    define_macros = [('LIBRARY_VERSION', '"' + __LIBRARY_VERSION__ + '"')],
-    extra_compile_args = cconf + ['-I${PROJECT_SOURCE_DIR}', '-I${PROJECT_BINARY_DIR}/cmsat5-src'],
-    extra_link_args = extra_link_args,
-    language = "c++",
-    library_dirs=['.', '${PROJECT_BINARY_DIR}/lib'],
-    runtime_library_dirs=['${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}'],
-    libraries = ['cryptominisat5']
+EXTENSION = Extension(
+    name="pycryptosat",
+    sources=SOURCES,
+    include_dirs=['src', '.'],
+    define_macros=[('LIBRARY_VERSION', '"' + __LIBRARY_VERSION__ + '"'),
+                   ('libcryptominisat5_EXPORTS', None)],
 )
 
 setup(
-    name = "pycryptosat",
-    version = __PACKAGE_VERSION__,
-    author = "Mate Soos",
-    author_email = "soos.mate@gmail.com",
-    url = "https://github.com/msoos/cryptominisat",
-    license = "MIT",
-    classifiers = [
+    name="pycryptosat",
+    version=__PACKAGE_VERSION__, # package version; not library version
+    author="Mate Soos", # package author’s name
+    author_email="soos.mate@gmail.com",
+    url="https://github.com/msoos/cryptominisat",
+    classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Operating System :: OS Independent",
         "Programming Language :: C++",
+        "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
         "License :: OSI Approved :: MIT License",
         "Topic :: Utilities",
+        "Topic :: Scientific/Engineering"
     ],
-    ext_modules =  [Extension(**modules)],
-    description = "Bindings to CryptoMiniSat {} (a SAT solver)".\
+    ext_modules=[EXTENSION],
+    description="Bindings to CryptoMiniSat {} (a SAT solver)".\
         format(__LIBRARY_VERSION__),
-#    py_modules = ['pycryptosat'],
-    long_description = open('${CMAKE_CURRENT_SOURCE_DIR}/README.rst').read(),
+    long_description=open('README.rst').read(),
     cmdclass={
-        'test': TestCommand
+        'test': TestCommand,
+        'build_ext': build_ext
     }
-
 )

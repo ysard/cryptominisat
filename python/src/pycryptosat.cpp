@@ -345,6 +345,11 @@ static PyObject* add_clause(Solver *self, PyObject *args, PyObject *kwds)
     }
 
     std::vector<Lit> lits;
+    // Reserve space
+    Py_ssize_t clause_size = PySequence_Size(clause);
+    if (clause_size > 0) {
+        lits.reserve((unsigned int) clause_size);
+    }
     if (!parse_clause(self, clause, lits)) {
         return 0;
     }
@@ -416,6 +421,11 @@ static PyObject* add_xor_clause(Solver *self, PyObject *args, PyObject *kwds)
     bool real_rhs = PyObject_IsTrue(rhs);
 
     std::vector<uint32_t> vars;
+    // Reserve space
+    Py_ssize_t clause_size = PySequence_Size(clause);
+    if (clause_size > 0) {
+        vars.reserve((unsigned int) clause_size);
+    }
     if (!parse_xor_clause(self, clause, vars)) {
         return 0;
     }
@@ -613,6 +623,11 @@ static PyObject* solve(Solver *self, PyObject *args, PyObject *kwds)
 
     std::vector<Lit> assumption_lits;
     if (assumptions) {
+        // Reserve space
+        Py_ssize_t clause_size = PySequence_Size(assumptions);
+        if (clause_size > 0) {
+            assumption_lits.reserve((unsigned int) clause_size);
+        }
         if (!parse_assumption_lits(assumptions, self->cmsat, assumption_lits)) {
             return 0;
         }
@@ -753,6 +768,11 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
     #endif
 
     std::vector<Lit> var_lits;
+    // Reserve space
+    Py_ssize_t clause_size = PySequence_Size(var_selected);
+    if (clause_size > 0) {
+        var_lits.reserve((unsigned int) clause_size);
+    }
     if (!parse_clause(self, var_selected, var_lits)) {
         return 0;
     }
@@ -817,7 +837,9 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
             if (current_nr_of_solutions < max_nr_of_solutions) {
 
                 std::vector<Lit> ban_solution;
-                const std::vector<lbool> model = self->cmsat->get_model();
+                // Reserve space
+                ban_solution.reserve(var_lits.size());
+                const std::vector<lbool>& model = self->cmsat->get_model();
 
                 // Iterate on var_selected (instead of iterate on all vars in solver)
                 for (unsigned long i = 0; i < var_lits.size(); i++) {

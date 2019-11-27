@@ -28,9 +28,9 @@ from __future__ import print_function
 from distutils import sysconfig
 from collections import defaultdict
 import sys
-from setuptools import setup, Extension, dist
+from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext as _build_ext
-from setuptools.command.test import test as Test
+from setuptools.command.test import test as _test
 
 __PACKAGE_VERSION__ = "0.2.1"
 __LIBRARY_VERSION__ = "${CMS_FULL_VERSION}"
@@ -39,20 +39,20 @@ __LIBRARY_VERSION__ = "${CMS_FULL_VERSION}"
 
 # Definition of various arguments specific to compilers and platforms
 EXTRA_ARGS = {
-    'msvc': {
-        'extra_compile_args':
-            ['/std:c++11', '/LTCG', '/GL', '/O2', '/W4', '/GS-'],
-        'extra_link_args':
-            ['/std:c++11', '/LTCG', '/GL', '/O2', '/W4', '/GS-'],
+    "msvc": {
+        "extra_compile_args":
+            ["/std:c++11", "/LTCG", "/GL", "/O2", "/W4", "/GS-"],
+        "extra_link_args":
+            ["/std:c++11", "/LTCG", "/GL", "/O2", "/W4", "/GS-"],
     },
-    'mingw32': {
+    "mingw32": {
         # 06/2018: flto is still broken on Windows
-        'extra_compile_args': ['-std=c++11', '-O3',
-                               '-Wno-return-type',
-                               '-Wno-unused-variable',
-                               '-Wno-unused-but-set-variable',
-                               '-fvisibility=hidden'],
-        'extra_link_args': ['-O3', '-Wl,--as-needed'],
+        "extra_compile_args": ["-std=c++11", "-O3",
+                               "-Wno-return-type",
+                               "-Wno-unused-variable",
+                               "-Wno-unused-but-set-variable",
+                               "-fvisibility=hidden"],
+        "extra_link_args": ["-O3", "-Wl,--as-needed"],
         # Macros used to fix compilation via mingw32
         # hypot:
         # https://stackoverflow.com/questions/10660524/error-building-boost-1-49-0-with-gcc-4-7-0/
@@ -62,33 +62,33 @@ EXTRA_ARGS = {
         #
         # MS_WIN64:
         # https://stackoverflow.com/questions/2842469/python-undefined-reference-to-imp-py-initmodule4
-        # Fix undefined reference to `_imp __Py_InitModule4'
-        'define_macros': [('_hypot', 'hypot'), ('MS_WIN64', None)],
+        # Fix undefined reference to `_imp __Py_InitModule4"
+        "define_macros": [("_hypot", "hypot"), ("MS_WIN64", None)],
     },
-    'unix': {
-        'extra_compile_args': ['-std=c++11', '-flto', '-O3',
-                               '-Wno-return-type',
-                               '-Wno-unused-variable',
-                               '-Wno-unused-but-set-variable',
-                               '-fvisibility=hidden'],
-        'extra_link_args': ['-flto', '-O3', '-Wl,--as-needed'],
+    "unix": {
+        "extra_compile_args": ["-std=c++11", "-flto", "-O3",
+                               "-Wno-return-type",
+                               "-Wno-unused-variable",
+                               "-Wno-unused-but-set-variable",
+                               "-fvisibility=hidden"],
+        "extra_link_args": ["-flto", "-O3", "-Wl,--as-needed"],
     },
-    'unix_darwin': {
-        # linking to Clang's C++ library libc++, rather than GCC's libstdc++
+    "unix_darwin": {
+        # linking to Clang"s C++ library libc++, rather than GCC"s libstdc++
         # (avoid missing headers like <cstdint>)
         # libc++ is available starting from OSX 10.9
-        'extra_compile_args': ['-stdlib=libc++', '-std=c++14', '-flto', '-O3',
-                               '-Wno-return-type',
-                               '-Wno-unused-variable',
-                               '-Wno-unused-but-set-variable',
-                               '-fvisibility=hidden'],
-        'extra_link_args': ['-stdlib=libc++', '-flto', '-O3'],
+        "extra_compile_args": ["-stdlib=libc++", "-std=c++14", "-flto", "-O3",
+                               "-Wno-return-type",
+                               "-Wno-unused-variable",
+                               "-Wno-unused-but-set-variable",
+                               "-fvisibility=hidden"],
+        "extra_link_args": ["-stdlib=libc++", "-flto", "-O3"],
     },
 }
 EXTRA_ARGS = defaultdict(lambda: defaultdict(list), EXTRA_ARGS)
 
 
-class build_ext(_build_ext):
+class BuildExt(_build_ext):
     """Wrapper for build_ext class from setuptools.
 
     This wrapper is used to set specific compiler args in order to build
@@ -102,8 +102,8 @@ class build_ext(_build_ext):
         compiler = self.compiler.compiler_type
 
         # Use specific flags for OSX which has a "unix" compiler_type
-        if sys.platform == 'darwin':
-            compiler += '_darwin'
+        if sys.platform == "darwin":
+            compiler += "_darwin"
 
         for ext in self.extensions:
             for extra_arg, args in EXTRA_ARGS[compiler].items():
@@ -127,23 +127,27 @@ def _init_posix(init):
     """Initialize the module as appropriate for POSIX systems."""
     def wrapper():
         init()
+        # Get Python’s configuration variables for the current platform
         config_vars = sysconfig.get_config_vars()  # by reference
+        if "MACHDEP" not in config_vars:
+            return
+
         if config_vars["MACHDEP"].startswith("sun"):
             # Sun needs forced gcc/g++ compilation
-            config_vars['CC'] = 'gcc'
-            config_vars['CXX'] = 'g++'
+            config_vars["CC"] = "gcc"
+            config_vars["CXX"] = "g++"
 
         if config_vars["MACHDEP"].startswith("linux") \
         or config_vars["MACHDEP"] == "cygwin":
             # Remove GDB specific debug informations
             # Remove -Wstrict-prototypes which is valid for C but not for C++
             for k, v in config_vars.items():
-                for unwanted in (' -g ', '-Wstrict-prototypes'):
+                for unwanted in (" -g ", "-Wstrict-prototypes"):
                     if str(v).find(unwanted) != -1:
-                        v = config_vars[k] = str(v).replace(unwanted, ' ')
+                        v = config_vars[k] = str(v).replace(unwanted, " ")
     return wrapper
 
-if sys.platform != 'win32':
+if sys.platform != "win32":
     # Posix platforms only:
     # Avoid ImportError: _sysconfigdata on Windows
     sysconfig._init_posix = _init_posix(sysconfig._init_posix)
@@ -153,7 +157,7 @@ if sys.platform != 'win32':
 
 ################################################################################
 
-class TestCommand(Test):
+class Test(_test):
     """Call tests with the custom 'python setup.py test' command."""
 
     def run(self):
@@ -168,15 +172,17 @@ SOURCES = [${PYTHON_STRIPPED_SOURCES}]
 EXTENSION = Extension(
     name="pycryptosat",
     sources=SOURCES,
-    include_dirs=['src', '.'],
-    define_macros=[('LIBRARY_VERSION', '"' + __LIBRARY_VERSION__ + '"'),
-                   ('libcryptominisat5_EXPORTS', None)],
+    include_dirs=["src", "."],
+    define_macros=[
+        ("LIBRARY_VERSION", '"' + __LIBRARY_VERSION__ + '"'),
+        ("libcryptominisat5_EXPORTS", None),
+    ],
 )
 
 setup(
     name="pycryptosat",
-    version=__PACKAGE_VERSION__, # package version; not library version
-    author="Mate Soos", # package author’s name
+    version=__PACKAGE_VERSION__,  # package version; not library version
+    author="Mate Soos",  # package author’s name
     author_email="soos.mate@gmail.com",
     url="https://github.com/msoos/cryptominisat",
     classifiers=[
@@ -190,14 +196,15 @@ setup(
         "Programming Language :: Python :: 3.6",
         "License :: OSI Approved :: MIT License",
         "Topic :: Utilities",
-        "Topic :: Scientific/Engineering"
+        "Topic :: Scientific/Engineering",
     ],
     ext_modules=[EXTENSION],
-    description="Bindings to CryptoMiniSat {} (a SAT solver)".\
-        format(__LIBRARY_VERSION__),
-    long_description=open('README.rst').read(),
+    description="Bindings to CryptoMiniSat {} (a SAT solver)".format(
+        __LIBRARY_VERSION__
+    ),
+    long_description=open("README.rst").read(),
     cmdclass={
-        'test': TestCommand,
-        'build_ext': build_ext
+        "test": Test,
+        "build_ext": BuildExt
     }
 )

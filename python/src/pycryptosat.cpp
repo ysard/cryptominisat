@@ -79,16 +79,21 @@ typedef struct {
 } Solver;
 
 static const char solver_create_docstring[] = \
-"Solver(verbose=0, time_limit=max_numeric_limits, confl_limit=max_numeric_limits, threads=1)\n\
+"Solver(verbose=0, time_limit=0.0, confl_limit=0, threads=1)\n\
 Create Solver object.\n\
 \n\
-:param verbose: Verbosity level: 0: nothing printed; 15: very verbose.\n\
-:param time_limit: Propagation limit: abort after this many seconds has elapsed.\n\
-:param confl_limit: Propagation limit: abort after this many conflicts.\n\
-    Default: never abort.\n\
-:param threads: Number of threads to use.\n\
+:key verbose: Verbosity level\n\
+    - 0: nothing printed (default)\n\
+    - 15: very verbose.\n\
+:key time_limit: Propagation limit\n\
+    Abort the search after this time (in seconds) has elapsed.\n\
+    Default: Never abort.\n\
+:key confl_limit: Propagation limit\n\
+    Abort after this amount of conflict is reached.\n\
+    Default: Never abort.\n\
+:key threads: Number of threads to use.\n\
 :type verbose: <int>\n\
-:type time_limit: <double>\n\
+:type time_limit: <float>\n\
 :type confl_limit: <long>\n\
 :type threads: <int>";
 
@@ -98,8 +103,8 @@ static SATSolver* setup_solver(PyObject *args, PyObject *kwds)
 
     int verbose = 0;
     int num_threads = 1;
-    double time_limit = std::numeric_limits<double>::max();
-    long confl_limit = std::numeric_limits<long>::max();
+    double time_limit = 0.0;
+    long confl_limit = 0;
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|idli", kwlist, &verbose, &time_limit, &confl_limit, &num_threads)) {
         return NULL;
     }
@@ -121,9 +126,12 @@ static SATSolver* setup_solver(PyObject *args, PyObject *kwds)
     }
 
     SATSolver *cmsat = new SATSolver;
-    cmsat->set_max_time(time_limit);
-    cmsat->set_max_confl(confl_limit);
-    cmsat->set_verbosity(verbose);
+    if (time_limit > 0.0)
+        cmsat->set_max_time(time_limit);
+    if (confl_limit > 0)
+        cmsat->set_max_confl(confl_limit);
+    if (verbose > 0)
+        cmsat->set_verbosity(verbose);
     cmsat->set_num_threads(num_threads);
 
     return cmsat;

@@ -3,7 +3,7 @@ Python bindings to CryptoMiniSat (http://msoos.org)
 
 Copyright (c) 2013, Ilan Schnell, Continuum Analytics, Inc.
               2014, Mate Soos
-              2017, Pierre Vignet
+              2017-2019, Pierre Vignet
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -330,9 +330,9 @@ PyDoc_STRVAR(add_clause_doc,
 "add_clause(clause)\n\
 Add a clause to the solver.\n\
 \n\
-:param arg1: A clause contains literals (ints)\n\
+:param clause: An iterable containing literals (ints)\n\
 :return: None\n\
-:type arg1: <list>\n\
+:type clause: <list>\n\
 :rtype: <None>"
 );
 
@@ -357,9 +357,10 @@ PyDoc_STRVAR(add_clauses_doc,
 "add_clauses(clauses)\n\
 Add iterable of clauses to the solver.\n\
 \n\
-:param arg1: List of clauses. Each clause contains literals (ints)\n\
+:param clauses: List of clauses. Each clause is an iterable containing\n\
+     literals (ints)\n\
 :return: None\n\
-:type arg1: <list>\n\
+:type clauses: <list>\n\
 :rtype: <None>"
 );
 
@@ -576,29 +577,29 @@ Solve the system of equations that have been added with add_clause();\n\
     >>> s.add_clause([3])\n\
     >>> s.add_clause([-1, 2, 3])\n\
     >>> sat, solution = s.solve()\n\
-    >>> print sat\n\
+    >>> print(sat)\n\
     True\n\
-    >>> print solution\n\
+    >>> print(solution)\n\
     (None, True, False, True)\n\
     \n\
     We can also try to assume any variable values for a single solver run:\n\
     \n\
     sat, solution = s.solve([-3])\n\
-    >>> print sat\n\
+    >>> print(sat)\n\
     False\n\
-    >>> print solution\n\
+    >>> print(solution)\n\
     None\n\
 \n\
-:param arg1: (Optional) Allows the user to set values to specific variables\n\
+:key assumptions: (Optional) Allows the user to set values to specific variables\n\
     in the solver in a temporary fashion. This means that in case the problem\n\
     is satisfiable but e.g it's unsatisfiable if variable 2 is FALSE, then\n\
     solve([-2]) will return UNSAT. However, a subsequent call to solve() will\n\
     still return a solution.\n\
-:type arg1: <list>\n\
 :return: A tuple. First part of the tuple indicates whether the problem\n\
     is satisfiable. The second part is a tuple contains the solution,\n\
     preceded by None, so you can index into it with the variable number.\n\
     E.g. solution[1] returns the value for variabe 1.\n\
+:type assumptions: <list>\n\
 :rtype: <tuple <tuple>>"
 );
 
@@ -666,7 +667,6 @@ PyDoc_STRVAR(is_satisfiable_doc,
 "is_satisfiable()\n\
 Return satisfiability of the system.\n\
 \n\
-:return: True or False\n\
 :rtype: <boolean>"
 );
 
@@ -701,25 +701,28 @@ previous solution found will be banned.\n\
     a maximum of loops must be set with 'max_nr_of_solutions' parameter\n\
 \n\
 .. note:: As it is highly suggested in the documentation of cryptominisat,\n\
-    the new clause (banned solutions) contains the variables that are \n\
+    the new clause (banned solutions) contains the variables that are\n\
     \"important\" or \"main\" to your problem (i.e. \"var_selected\" argument).\n\
     Variables that were only used to translate the original problem into CNF \n\
     should not be added.\n\
-    This way, you will not get spurious solutions that don't differ in \n\
-    the main, important variables.\n\
+    This way, you will not get spurious solutions; only the main,\n\
+    important variables differ.\n\
 \n\
-:param arg1: Maximum number of solutions before stop the search\n\
-:param arg2: Variables for which the solver must find different solutions\n\
-:param arg3: (Optional) Format of literals for each solution returned. \n\
+:param max_nr_of_solutions: Maximum number of solutions before stop the search\n\
+:param var_selected: Variables for which the solver must find different solutions\n\
+:key raw: (Optional) Format of literals for each solution returned.\n\
     If set to True, lists of literals will be returned;\n\
-    .. example:: [(1, -2, -3, -4, -5, -6, -7, -8, -9, 10,),]\n\
-    if set to False, tuples of booleans will be returned,\n\
+    .. example:: \n\
+        [(1, -2, -3, -4, -5, -6, -7, -8, -9, 10,),]\n\
+\n\
+    If set to False, tuples of booleans will be returned,\n\
     with None at the first position.\n\
-    .. example:: [(None, True, False, True,),]\n\
-:type arg1: <int>\n\
-:type arg2: <list>\n\
-:type arg3: <boolean>\n\
+    .. example::\n\
+        [(None, True, False, True,),]\n\
 :return: List of solutions (list of tuples of literals)\n\
+:type max_nr_of_solutions: <int>\n\
+:type var_selected: <list>\n\
+:type raw: <boolean>\n\
 :rtype: <list <tuple>>"
 );
 

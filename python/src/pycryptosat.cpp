@@ -678,11 +678,9 @@ static PyObject* is_satisfiable(Solver *self)
     Py_END_ALLOW_THREADS
 
     if (res == l_True) {
-        Py_INCREF(Py_True);
-        return Py_True;
+        Py_RETURN_TRUE;
     } else if (res == l_False) {
-        Py_INCREF(Py_False);
-        return Py_False;
+        Py_RETURN_FALSE;
     } else if (res == l_Undef) {
         Py_RETURN_NONE;
     } else {

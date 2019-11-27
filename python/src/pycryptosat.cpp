@@ -140,7 +140,7 @@ static SATSolver* setup_solver(PyObject *args, PyObject *kwds)
 static int convert_lit_to_sign_and_var(PyObject* lit, long& var, bool& sign)
 {
     if (!IS_INT(lit))  {
-        PyErr_SetString(PyExc_TypeError, "integer expected !");
+        PyErr_SetString(PyExc_TypeError, "integer expected");
         return 0;
     }
 
@@ -152,7 +152,7 @@ static int convert_lit_to_sign_and_var(PyObject* lit, long& var, bool& sign)
     if (val > std::numeric_limits<int>::max()/2
         || val < std::numeric_limits<int>::min()/2
     ) {
-        PyErr_Format(PyExc_ValueError, "integer %ld is too small or too large", val);
+        PyErr_Format(PyExc_ValueError, "integer '%ld' is too small or too large", val);
         return 0;
     }
 
@@ -481,7 +481,6 @@ PyDoc_STRVAR(nb_vars_doc,
 "nb_vars()\n\
 Return the number of literals in the solver.\n\
 \n\
-:return: Number of literals\n\
 :rtype: <int>"
 );
 
@@ -505,7 +504,7 @@ static int parse_assumption_lits(PyObject* assumptions, SATSolver* cmsat, std::v
 {
     PyObject *iterator = PyObject_GetIter(assumptions);
     if (iterator == NULL) {
-        PyErr_SetString(PyExc_TypeError, "interable object expected");
+        PyErr_SetString(PyExc_TypeError, "iterable object expected");
         return 0;
     }
 
@@ -522,7 +521,7 @@ static int parse_assumption_lits(PyObject* assumptions, SATSolver* cmsat, std::v
 
         if (var >= cmsat->nVars()) {
             Py_DECREF(iterator);
-            PyErr_Format(PyExc_ValueError, "Variable %ld not used in clauses", var+1);
+            PyErr_Format(PyExc_ValueError, "variable '%ld' not used in clauses", var+1);
             return 0;
         }
 

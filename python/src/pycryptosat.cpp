@@ -463,13 +463,6 @@ static PyObject* nb_clauses(Solver *self)
     #endif
 }
 
-/*
-static PyObject* nb_clauses(Solver *self)
-{
-    // Private attribute => need to make a public method
-    return PyInt_FromLong(self->cmsat->data->solvers.size());
-}*/
-
 static int parse_assumption_lits(PyObject* assumptions, SATSolver* cmsat, std::vector<Lit>& assumption_lits)
 {
     PyObject *iterator = PyObject_GetIter(assumptions);

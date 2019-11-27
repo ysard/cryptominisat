@@ -34,6 +34,18 @@ using namespace CMSat;
 #define MODULE_NAME "pycryptosat"
 #define MODULE_DOC "CryptoMiniSAT satisfiability solver."
 
+// Define visibility of functions
+// Ex: PyMODINIT_FUNC PyInit_pycryptosat(void) __attribute__ ((visibility ("default") ));
+#if defined _WIN32 || defined __CYGWIN__
+    #define DLL_PUBLIC __declspec(dllexport)
+#else
+    #if __GNUC__ >= 4
+        #define DLL_PUBLIC __attribute__ ((visibility ("default")))
+    #else
+        #define DLL_PUBLIC
+    #endif
+#endif
+
 // Compatibility between Python 2 and 3
 #if PY_MAJOR_VERSION >= 3
 #define IS_PY3K
@@ -43,14 +55,14 @@ using namespace CMSat;
     #define IS_INT(x)  PyLong_Check(x)
 
     #define MODULE_INIT_FUNC(name) \
-        PyMODINIT_FUNC PyInit_ ## name(void); \
+        PyMODINIT_FUNC PyInit_ ## name(void) DLL_PUBLIC; \
         PyMODINIT_FUNC PyInit_ ## name(void)
 #else
     #define IS_INT(x)  (PyInt_Check(x) || PyLong_Check(x))
 
     #define MODULE_INIT_FUNC(name) \
         static PyObject *PyInit_ ## name(void); \
-        PyMODINIT_FUNC init ## name(void); \
+        PyMODINIT_FUNC init ## name(void) DLL_PUBLIC; \
         PyMODINIT_FUNC init ## name(void) { PyInit_ ## name(); } \
         static PyObject *PyInit_ ## name(void)
 #endif

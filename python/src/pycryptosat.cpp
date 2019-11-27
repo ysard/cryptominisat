@@ -782,14 +782,13 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
     // std::cout << "DEBUG :: Solver: Raw sols activated: " << ((raw_solutions_activated) ? "True" : "False") << std::endl;
     // std::cout << "DEBUG :: Solver: Nb literals: " << var_lits.size() << std::endl;
 
-//     for (unsigned long i = 0; i < var_lits.size(); i++) {
-//         std::cout << "real value: " << var_lits[i]
-//                   << "; x: " << var_lits[i].toInt()
-//                   << "; sign: " << var_lits[i].sign()
-//                   << "; var: " << var_lits[i].var()
-//                   //<< "; toInt as long " << PyLong_AsLong(var_lits[i])
-//                   << '\n';
-//     }
+    // for (unsigned long i = 0; i < var_lits.size(); i++) {
+    //     std::cout << "real value: " << var_lits[i]
+    //               << "; x: " << var_lits[i].toInt()
+    //               << "; sign: " << var_lits[i].sign()
+    //               << "; var: " << var_lits[i].var()
+    //               << '\n';
+    // }
 
     PyObject *solutions = PyList_New(0);
     if (solutions == NULL) {
@@ -799,7 +798,6 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
 
     int current_nr_of_solutions = 0;
     lbool res = l_True;
-    std::vector<Lit>::iterator it;
     PyObject* solution = NULL;
     while((current_nr_of_solutions < max_nr_of_solutions) && (res == l_True)) {
 
@@ -824,7 +822,6 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
             }
 
             if (!solution) {
-                PyErr_SetString(PyExc_SystemError, "no solution");
                 Py_DECREF(solutions);
                 return NULL;
             }
@@ -843,22 +840,25 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
 
                 // Iterate on var_selected (instead of iterate on all vars in solver)
                 for (unsigned long i = 0; i < var_lits.size(); i++) {
-
-                    // If the current variable is > 0 (false)
-                    // PS: internal value of any literal is equal to i;
-                    // human readable value is i+1 (begins with 1 instead of 0)
+                    /* Note: The internal value of each literal is equal to their position in the model (values begin from 0);
+                     * human readable value is i+1 (begins with 1 instead of 0)
+                     * Note:
+                     *  Literal "1": Lit(0, false)
+                     *  Literal "-2": Lit(1, true)
+                     */
                     if (var_lits[i].sign() == false) {
+                        // The current variable is > 0 (false)
 
                         // The current value of the variable must belong to the solver variables
                         assert(var_lits[i].var() <= (uint32_t)self->cmsat->nVars());
 
-                        // std::cout << "human readable lit: " << var_lits[i] << "; lit sign: " << ((var_lits[i].sign() == 0) ? "false" : "true") << std::endl;
+                        // std::cout << "human readable lit: " << var_lits[i] << "; var_lits[i] sign: " << ((var_lits[i].sign() == 0) ? "false" : "true") << std::endl;
                         // std::cout << "lit value: " << var_lits[i].var() << "; model status: " << model[var_lits[i].var()] << std::endl;
 
                         // Get the corresponding variable in the model, whatever its sign
                         // Add it to the futur banned clause
                         ban_solution.push_back(
-                            Lit(var_lits[i].var(), (model[var_lits[i].var()] == l_True) ? true : false)
+                            Lit(var_lits[i].var(), (model[var_lits[i].var()] == l_True))
                         );
                     }
                 }

@@ -338,8 +338,7 @@ static PyObject* add_clause(Solver *self, PyObject *args, PyObject *kwds)
     }
     self->cmsat->add_clause(lits);
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(add_clauses_doc,
@@ -367,9 +366,12 @@ static PyObject* add_clauses(Solver *self, PyObject *args, PyObject *kwds)
     }
 
     PyObject *clause;
+    PyObject *arglist;
+    PyObject *ret;
     while ((clause = PyIter_Next(iterator)) != NULL) {
-        PyObject *arglist = Py_BuildValue("(O)", clause);
-        PyObject *ret = add_clause(self, arglist, NULL);
+
+        arglist = Py_BuildValue("(O)", clause);
+        ret = add_clause(self, arglist, NULL);
         Py_DECREF(ret);
 
         /* release reference when done */
@@ -383,8 +385,7 @@ static PyObject* add_clauses(Solver *self, PyObject *args, PyObject *kwds)
         return NULL;
     }
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject* add_xor_clause(Solver *self, PyObject *args, PyObject *kwds)
@@ -408,8 +409,7 @@ static PyObject* add_xor_clause(Solver *self, PyObject *args, PyObject *kwds)
 
     self->cmsat->add_xor_clause(vars, real_rhs);
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject* get_solution(SATSolver *cmsat)
@@ -423,7 +423,7 @@ static PyObject* get_solution(SATSolver *cmsat)
     }
 
     Py_INCREF(Py_None);
-    PyTuple_SET_ITEM(tuple, (Py_ssize_t)0, Py_None);
+    PyTuple_SET_ITEM(tuple, 0, Py_None);
 
     PyObject *py_value = NULL;
     lbool v;
@@ -440,6 +440,7 @@ static PyObject* get_solution(SATSolver *cmsat)
             // v can only be l_False, l_True, l_Undef
             assert((v == l_False) || (v == l_True) || (v == l_Undef));
         }
+
         Py_INCREF(py_value);
         PyTuple_SET_ITEM(tuple, (Py_ssize_t)i+1, py_value);
     }
@@ -588,7 +589,7 @@ static PyObject* solve(Solver *self, PyObject *args, PyObject *kwds)
         }
     }
 
-    PyObject *result = PyTuple_New((Py_ssize_t) 2);
+    PyObject *result = PyTuple_New(2);
     if (result == NULL) {
         PyErr_SetString(PyExc_SystemError, "failed to create a tuple");
         return NULL;
@@ -655,11 +656,11 @@ static PyObject* is_satisfiable(Solver *self)
         Py_INCREF(Py_False);
         return Py_False;
     } else if (res == l_Undef) {
-        return Py_None;
+        Py_RETURN_NONE;
     } else {
         // res can only be l_False, l_True, l_Undef
         assert((res == l_False) || (res == l_True) || (res == l_Undef));
-        return NULL;
+        return PyErr_NewExceptionWithDoc("pycyrptosat.IllegalState", "Error Occured in CyrptoMiniSat", NULL, NULL);
     }
 }
 
@@ -821,6 +822,7 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
             }
         } else if (res == l_False) {
             // std::cout << "DEBUG :: Solver: No more solution" << std::endl;
+            break;
         } else if (res == l_Undef) {
             Py_DECREF(solutions);
             PyErr_SetString(PyExc_SystemError, "Nothing to do => sol undef");
@@ -829,7 +831,7 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
             // res can only be l_False, l_True, l_Undef
             assert((res == l_False) || (res == l_True) || (res == l_Undef));
             Py_DECREF(solutions);
-            return NULL;
+            return PyErr_NewExceptionWithDoc("pycyrptosat.IllegalState", "Error Occured in CyrptoMiniSat", NULL, NULL);
         }
     }
     // Return list of all solutions

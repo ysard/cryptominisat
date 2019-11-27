@@ -506,6 +506,22 @@ static PyObject* nb_vars(Solver *self)
     #endif
 }
 
+PyDoc_STRVAR(nb_clauses_doc,
+"nb_vars()\n\
+Return the number of clauses in the solver.\n\
+\n\
+:rtype: <int>"
+);
+
+static PyObject* nb_clauses(Solver *self)
+{
+    #ifdef IS_PY3K
+    return PyLong_FromLong(self->cmsat->nClauses());
+    #else
+    return PyInt_FromLong(self->cmsat->nClauses());
+    #endif
+}
+
 /*
 static PyObject* nb_clauses(Solver *self)
 {
@@ -862,7 +878,7 @@ static PyMethodDef Solver_methods[] = {
     {"add_clauses", (PyCFunction) add_clauses,  METH_VARARGS | METH_KEYWORDS, add_clauses_doc},
     {"add_xor_clause",(PyCFunction) add_xor_clause,  METH_VARARGS | METH_KEYWORDS, "adds an XOR clause to the system"},
     {"nb_vars", (PyCFunction) nb_vars, METH_VARARGS | METH_KEYWORDS, nb_vars_doc},
-    //{"nb_clauses", (PyCFunction) nb_clauses, METH_VARARGS | METH_KEYWORDS, "returns number of clauses"},
+    {"nb_clauses", (PyCFunction) nb_clauses, METH_VARARGS | METH_KEYWORDS, nb_clauses_doc},
     {"msolve_selected", (PyCFunction) msolve_selected, METH_VARARGS | METH_KEYWORDS, msolve_selected_doc},
     {"is_satisfiable", (PyCFunction) is_satisfiable, METH_VARARGS | METH_KEYWORDS, is_satisfiable_doc},
 

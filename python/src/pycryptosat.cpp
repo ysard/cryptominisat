@@ -412,11 +412,12 @@ static PyObject* get_raw_solution(SATSolver *cmsat) {
     // Add each variable in model to the tuple
     PyObject *py_value = NULL;
     int sign;
+    const std::vector<lbool>& model = cmsat->get_model();
     for (long var = 0; var != (long)max_idx; var++) {
 
-        if (cmsat->get_model()[var] != l_Undef) {
+        if (model[var] != l_Undef) {
 
-            sign = (cmsat->get_model()[var] == l_True) ? 1 : -1;
+            sign = (model[var] == l_True) ? 1 : -1;
 
             #ifdef IS_PY3K
             py_value = PyLong_FromLong((var + 1) * sign);

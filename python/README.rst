@@ -80,7 +80,7 @@ If instead of an assumption ``add_clause()`` would have been used, subsequent
   * ``confl_limit``: the propagation limit (integer)
   * ``verbose``: the verbosity level (integer)
 
-Both ``time_limit`` and ``confl_limit`` set a budget to the solver. The former is based on time elapsed while the former is based on number of conflicts met during search. If the solver runs out of budget, it returns with ``(None, None)``. If both limits are used, the solver will terminate whenever one of the limits are hit (whichever first). Warning: Results from ``time_limit`` may differ from run to run, depending on compute load, etc. Use ``confl_limit`` for more reproducible runs.
+Both ``time_limit`` and ``confl_limit`` set a budget to the solver. The former is based on time elapsed while the latter is based on the number of conflicts met during search. If the solver runs out of budget, it returns with ``(None, None)``. If both limits are used, the solver will terminate whenever one of the limits is reached (whichever comes first). Warning: Results from ``time_limit`` may differ from run to run, depending on compute load, etc. Use ``confl_limit`` for more reproducible runs.
 
 Example
 -------

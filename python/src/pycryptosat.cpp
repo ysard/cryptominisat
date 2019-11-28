@@ -3,7 +3,7 @@ Python bindings to CryptoMiniSat (http://msoos.org)
 
 Copyright (c) 2013, Ilan Schnell, Continuum Analytics, Inc.
               2014, Mate Soos
-              2017, Pierre Vignet
+              2017-2019, Pierre Vignet
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,18 @@ using namespace CMSat;
 #define MODULE_NAME "pycryptosat"
 #define MODULE_DOC "CryptoMiniSAT satisfiability solver."
 
+// Define visibility of functions
+// Ex: PyMODINIT_FUNC PyInit_pycryptosat(void) __attribute__ ((visibility ("default") ));
+#if defined _WIN32 || defined __CYGWIN__
+    #define DLL_PUBLIC __declspec(dllexport)
+#else
+    #if __GNUC__ >= 4
+        #define DLL_PUBLIC __attribute__ ((visibility ("default")))
+    #else
+        #define DLL_PUBLIC
+    #endif
+#endif
+
 // Compatibility between Python 2 and 3
 #if PY_MAJOR_VERSION >= 3
 #define IS_PY3K
@@ -43,14 +55,14 @@ using namespace CMSat;
     #define IS_INT(x)  PyLong_Check(x)
 
     #define MODULE_INIT_FUNC(name) \
-        PyMODINIT_FUNC PyInit_ ## name(void); \
+        PyMODINIT_FUNC PyInit_ ## name(void) DLL_PUBLIC; \
         PyMODINIT_FUNC PyInit_ ## name(void)
 #else
     #define IS_INT(x)  (PyInt_Check(x) || PyLong_Check(x))
 
     #define MODULE_INIT_FUNC(name) \
         static PyObject *PyInit_ ## name(void); \
-        PyMODINIT_FUNC init ## name(void); \
+        PyMODINIT_FUNC init ## name(void) DLL_PUBLIC; \
         PyMODINIT_FUNC init ## name(void) { PyInit_ ## name(); } \
         static PyObject *PyInit_ ## name(void)
 #endif
@@ -79,16 +91,21 @@ typedef struct {
 } Solver;
 
 static const char solver_create_docstring[] = \
-"Solver(verbose=0, time_limit=max_numeric_limits, confl_limit=max_numeric_limits, threads=1)\n\
+"Solver(verbose=0, time_limit=0.0, confl_limit=0, threads=1)\n\
 Create Solver object.\n\
 \n\
-:param verbose: Verbosity level: 0: nothing printed; 15: very verbose.\n\
-:param time_limit: Propagation limit: abort after this many seconds has elapsed.\n\
-:param confl_limit: Propagation limit: abort after this many conflicts.\n\
-    Default: never abort.\n\
-:param threads: Number of threads to use.\n\
+:key verbose: Verbosity level\n\
+    - 0: nothing printed (default)\n\
+    - 15: very verbose.\n\
+:key time_limit: Propagation limit\n\
+    Abort the search after this time (in seconds) has elapsed.\n\
+    Default: Never abort.\n\
+:key confl_limit: Propagation limit\n\
+    Abort after this amount of conflict is reached.\n\
+    Default: Never abort.\n\
+:key threads: Number of threads to use.\n\
 :type verbose: <int>\n\
-:type time_limit: <double>\n\
+:type time_limit: <float>\n\
 :type confl_limit: <long>\n\
 :type threads: <int>";
 
@@ -98,8 +115,8 @@ static SATSolver* setup_solver(PyObject *args, PyObject *kwds)
 
     int verbose = 0;
     int num_threads = 1;
-    double time_limit = std::numeric_limits<double>::max();
-    long confl_limit = std::numeric_limits<long>::max();
+    double time_limit = 0.0;
+    long confl_limit = 0;
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|idli", kwlist, &verbose, &time_limit, &confl_limit, &num_threads)) {
         return NULL;
     }
@@ -121,9 +138,12 @@ static SATSolver* setup_solver(PyObject *args, PyObject *kwds)
     }
 
     SATSolver *cmsat = new SATSolver;
-    cmsat->set_max_time(time_limit);
-    cmsat->set_max_confl(confl_limit);
-    cmsat->set_verbosity(verbose);
+    if (time_limit > 0.0)
+        cmsat->set_max_time(time_limit);
+    if (confl_limit > 0)
+        cmsat->set_max_confl(confl_limit);
+    if (verbose > 0)
+        cmsat->set_verbosity(verbose);
     cmsat->set_num_threads(num_threads);
 
     return cmsat;
@@ -132,7 +152,7 @@ static SATSolver* setup_solver(PyObject *args, PyObject *kwds)
 static int convert_lit_to_sign_and_var(PyObject* lit, long& var, bool& sign)
 {
     if (!IS_INT(lit))  {
-        PyErr_SetString(PyExc_TypeError, "integer expected !");
+        PyErr_SetString(PyExc_TypeError, "integer expected");
         return 0;
     }
 
@@ -144,7 +164,7 @@ static int convert_lit_to_sign_and_var(PyObject* lit, long& var, bool& sign)
     if (val > std::numeric_limits<int>::max()/2
         || val < std::numeric_limits<int>::min()/2
     ) {
-        PyErr_Format(PyExc_ValueError, "integer %ld is too small or too large", val);
+        PyErr_Format(PyExc_ValueError, "integer '%ld' is too small or too large", val);
         return 0;
     }
 
@@ -235,84 +255,13 @@ static int parse_xor_clause(
     return 1;
 }
 
-PyDoc_STRVAR(start_getting_small_clauses_doc,
-"EXPERIMENTAL\n\
-Start getting clauses."
-);
-static PyObject* start_getting_small_clauses(Solver *self, PyObject *args, PyObject *kwds)
-{
-    static char* kwlist[] = {"max_len", "max_glue", NULL};
-
-    unsigned max_len;
-    unsigned max_glue;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "II", kwlist, &max_len, &max_glue)) {
-        return NULL;
-    }
-
-    self->cmsat->start_getting_small_clauses(max_len, max_glue);
-
-    Py_INCREF(Py_None);
-    return Py_None;
-}
-
-PyDoc_STRVAR(get_next_small_clause_doc,
-"EXPERIMENTAL\n\
-Start getting clauses."
-);
-static PyObject* get_next_small_clause(Solver *self, PyObject *args, PyObject *kwds)
-{
-    static char* kwlist[] = {NULL};
-    PyObject *max_len;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "", kwlist)) {
-        return NULL;
-    }
-
-    std::vector<Lit> lits;
-    bool ret = self->cmsat->get_next_small_clause(lits);
-    if (!ret) {
-        Py_INCREF(Py_None);
-        return Py_None;
-    }
-
-
-    PyObject* list = PyList_New(lits.size());
-    for(size_t i = 0; i < lits.size(); i++) {
-        Lit l = lits[i];
-        long ll = l.var()+1;
-        if (l.sign()) {
-            ll *= -1;
-        }
-
-        PyList_SetItem(list, i, PyLong_FromLong(ll));
-    }
-    return list;
-}
-
-
-PyDoc_STRVAR(end_getting_small_clauses_doc,
-"EXPERIMENTAL\n\
-End getting clauses."
-);
-static PyObject* end_getting_small_clauses(Solver *self, PyObject *args, PyObject *kwds)
-{
-    static char* kwlist[] = {NULL};
-    PyObject *max_len;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "", kwlist)) {
-        return NULL;
-    }
-    self->cmsat->end_getting_small_clauses();
-
-    Py_INCREF(Py_None);
-    return Py_None;
-}
-
 PyDoc_STRVAR(add_clause_doc,
 "add_clause(clause)\n\
 Add a clause to the solver.\n\
 \n\
-:param arg1: A clause contains literals (ints)\n\
+:param clause: An iterable containing literals (ints)\n\
 :return: None\n\
-:type arg1: <list>\n\
+:type clause: <list>\n\
 :rtype: <None>"
 );
 
@@ -325,22 +274,27 @@ static PyObject* add_clause(Solver *self, PyObject *args, PyObject *kwds)
     }
 
     std::vector<Lit> lits;
+    // Reserve space
+    Py_ssize_t clause_size = PySequence_Size(clause);
+    if (clause_size > 0) {
+        lits.reserve((unsigned int) clause_size);
+    }
     if (!parse_clause(self, clause, lits)) {
         return 0;
     }
     self->cmsat->add_clause(lits);
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 PyDoc_STRVAR(add_clauses_doc,
 "add_clauses(clauses)\n\
 Add iterable of clauses to the solver.\n\
 \n\
-:param arg1: List of clauses. Each clause contains literals (ints)\n\
+:param clauses: List of clauses. Each clause is an iterable containing\n\
+     literals (ints)\n\
 :return: None\n\
-:type arg1: <list>\n\
+:type clauses: <list>\n\
 :rtype: <None>"
 );
 
@@ -359,9 +313,12 @@ static PyObject* add_clauses(Solver *self, PyObject *args, PyObject *kwds)
     }
 
     PyObject *clause;
+    PyObject *arglist;
+    PyObject *ret;
     while ((clause = PyIter_Next(iterator)) != NULL) {
-        PyObject *arglist = Py_BuildValue("(O)", clause);
-        PyObject *ret = add_clause(self, arglist, NULL);
+
+        arglist = Py_BuildValue("(O)", clause);
+        ret = add_clause(self, arglist, NULL);
         Py_DECREF(ret);
 
         /* release reference when done */
@@ -375,8 +332,7 @@ static PyObject* add_clauses(Solver *self, PyObject *args, PyObject *kwds)
         return NULL;
     }
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject* add_xor_clause(Solver *self, PyObject *args, PyObject *kwds)
@@ -394,14 +350,18 @@ static PyObject* add_xor_clause(Solver *self, PyObject *args, PyObject *kwds)
     bool real_rhs = PyObject_IsTrue(rhs);
 
     std::vector<uint32_t> vars;
+    // Reserve space
+    Py_ssize_t clause_size = PySequence_Size(clause);
+    if (clause_size > 0) {
+        vars.reserve((unsigned int) clause_size);
+    }
     if (!parse_xor_clause(self, clause, vars)) {
         return 0;
     }
 
     self->cmsat->add_xor_clause(vars, real_rhs);
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    Py_RETURN_NONE;
 }
 
 static PyObject* get_solution(SATSolver *cmsat)
@@ -415,7 +375,7 @@ static PyObject* get_solution(SATSolver *cmsat)
     }
 
     Py_INCREF(Py_None);
-    PyTuple_SET_ITEM(tuple, (Py_ssize_t)0, Py_None);
+    PyTuple_SET_ITEM(tuple, 0, Py_None);
 
     PyObject *py_value = NULL;
     lbool v;
@@ -432,6 +392,7 @@ static PyObject* get_solution(SATSolver *cmsat)
             // v can only be l_False, l_True, l_Undef
             assert((v == l_False) || (v == l_True) || (v == l_Undef));
         }
+
         Py_INCREF(py_value);
         PyTuple_SET_ITEM(tuple, (Py_ssize_t)i+1, py_value);
     }
@@ -451,11 +412,12 @@ static PyObject* get_raw_solution(SATSolver *cmsat) {
     // Add each variable in model to the tuple
     PyObject *py_value = NULL;
     int sign;
+    const std::vector<lbool>& model = cmsat->get_model();
     for (long var = 0; var != (long)max_idx; var++) {
 
-        if (cmsat->get_model()[var] != l_Undef) {
+        if (model[var] != l_Undef) {
 
-            sign = (cmsat->get_model()[var] == l_True) ? 1 : -1;
+            sign = (model[var] == l_True) ? 1 : -1;
 
             #ifdef IS_PY3K
             py_value = PyLong_FromLong((var + 1) * sign);
@@ -473,7 +435,6 @@ PyDoc_STRVAR(nb_vars_doc,
 "nb_vars()\n\
 Return the number of literals in the solver.\n\
 \n\
-:return: Number of literals\n\
 :rtype: <int>"
 );
 
@@ -486,18 +447,27 @@ static PyObject* nb_vars(Solver *self)
     #endif
 }
 
-/*
+PyDoc_STRVAR(nb_clauses_doc,
+"nb_vars()\n\
+Return the number of clauses in the solver.\n\
+\n\
+:rtype: <int>"
+);
+
 static PyObject* nb_clauses(Solver *self)
 {
-    // Private attribute => need to make a public method
-    return PyInt_FromLong(self->cmsat->data->solvers.size());
-}*/
+    #ifdef IS_PY3K
+    return PyLong_FromLong(self->cmsat->nClauses());
+    #else
+    return PyInt_FromLong(self->cmsat->nClauses());
+    #endif
+}
 
 static int parse_assumption_lits(PyObject* assumptions, SATSolver* cmsat, std::vector<Lit>& assumption_lits)
 {
     PyObject *iterator = PyObject_GetIter(assumptions);
     if (iterator == NULL) {
-        PyErr_SetString(PyExc_TypeError, "interable object expected");
+        PyErr_SetString(PyExc_TypeError, "iterable object expected");
         return 0;
     }
 
@@ -514,7 +484,7 @@ static int parse_assumption_lits(PyObject* assumptions, SATSolver* cmsat, std::v
 
         if (var >= cmsat->nVars()) {
             Py_DECREF(iterator);
-            PyErr_Format(PyExc_ValueError, "Variable %ld not used in clauses", var+1);
+            PyErr_Format(PyExc_ValueError, "variable '%ld' not used in clauses", var+1);
             return 0;
         }
 
@@ -540,29 +510,29 @@ Solve the system of equations that have been added with add_clause();\n\
     >>> s.add_clause([3])\n\
     >>> s.add_clause([-1, 2, 3])\n\
     >>> sat, solution = s.solve()\n\
-    >>> print sat\n\
+    >>> print(sat)\n\
     True\n\
-    >>> print solution\n\
+    >>> print(solution)\n\
     (None, True, False, True)\n\
     \n\
     We can also try to assume any variable values for a single solver run:\n\
     \n\
     sat, solution = s.solve([-3])\n\
-    >>> print sat\n\
+    >>> print(sat)\n\
     False\n\
-    >>> print solution\n\
+    >>> print(solution)\n\
     None\n\
 \n\
-:param arg1: (Optional) Allows the user to set values to specific variables\n\
+:key assumptions: (Optional) Allows the user to set values to specific variables\n\
     in the solver in a temporary fashion. This means that in case the problem\n\
     is satisfiable but e.g it's unsatisfiable if variable 2 is FALSE, then\n\
     solve([-2]) will return UNSAT. However, a subsequent call to solve() will\n\
     still return a solution.\n\
-:type arg1: <list>\n\
 :return: A tuple. First part of the tuple indicates whether the problem\n\
     is satisfiable. The second part is a tuple contains the solution,\n\
     preceded by None, so you can index into it with the variable number.\n\
     E.g. solution[1] returns the value for variabe 1.\n\
+:type assumptions: <list>\n\
 :rtype: <tuple <tuple>>"
 );
 
@@ -576,12 +546,17 @@ static PyObject* solve(Solver *self, PyObject *args, PyObject *kwds)
 
     std::vector<Lit> assumption_lits;
     if (assumptions) {
+        // Reserve space
+        Py_ssize_t clause_size = PySequence_Size(assumptions);
+        if (clause_size > 0) {
+            assumption_lits.reserve((unsigned int) clause_size);
+        }
         if (!parse_assumption_lits(assumptions, self->cmsat, assumption_lits)) {
             return 0;
         }
     }
 
-    PyObject *result = PyTuple_New((Py_ssize_t) 2);
+    PyObject *result = PyTuple_New(2);
     if (result == NULL) {
         PyErr_SetString(PyExc_SystemError, "failed to create a tuple");
         return NULL;
@@ -630,7 +605,6 @@ PyDoc_STRVAR(is_satisfiable_doc,
 "is_satisfiable()\n\
 Return satisfiability of the system.\n\
 \n\
-:return: True or False\n\
 :rtype: <boolean>"
 );
 
@@ -642,17 +616,15 @@ static PyObject* is_satisfiable(Solver *self)
     Py_END_ALLOW_THREADS
 
     if (res == l_True) {
-        Py_INCREF(Py_True);
-        return Py_True;
+        Py_RETURN_TRUE;
     } else if (res == l_False) {
-        Py_INCREF(Py_False);
-        return Py_False;
+        Py_RETURN_FALSE;
     } else if (res == l_Undef) {
-        return Py_None;
+        Py_RETURN_NONE;
     } else {
         // res can only be l_False, l_True, l_Undef
         assert((res == l_False) || (res == l_True) || (res == l_Undef));
-        return NULL;
+        return PyErr_NewExceptionWithDoc("pycyrptosat.IllegalState", "Error Occured in CyrptoMiniSat", NULL, NULL);
     }
 }
 
@@ -665,25 +637,28 @@ previous solution found will be banned.\n\
     a maximum of loops must be set with 'max_nr_of_solutions' parameter\n\
 \n\
 .. note:: As it is highly suggested in the documentation of cryptominisat,\n\
-    the new clause (banned solutions) contains the variables that are \n\
+    the new clause (banned solutions) contains the variables that are\n\
     \"important\" or \"main\" to your problem (i.e. \"var_selected\" argument).\n\
     Variables that were only used to translate the original problem into CNF \n\
     should not be added.\n\
-    This way, you will not get spurious solutions that don't differ in \n\
-    the main, important variables.\n\
+    This way, you will not get spurious solutions; only the main,\n\
+    important variables differ.\n\
 \n\
-:param arg1: Maximum number of solutions before stop the search\n\
-:param arg2: Variables for which the solver must find different solutions\n\
-:param arg3: (Optional) Format of literals for each solution returned. \n\
+:param max_nr_of_solutions: Maximum number of solutions before stop the search\n\
+:param var_selected: Variables for which the solver must find different solutions\n\
+:key raw: (Optional) Format of literals for each solution returned.\n\
     If set to True, lists of literals will be returned;\n\
-    .. example:: [(1, -2, -3, -4, -5, -6, -7, -8, -9, 10,),]\n\
-    if set to False, tuples of booleans will be returned,\n\
+    .. example:: \n\
+        [(1, -2, -3, -4, -5, -6, -7, -8, -9, 10,),]\n\
+\n\
+    If set to False, tuples of booleans will be returned,\n\
     with None at the first position.\n\
-    .. example:: [(None, True, False, True,),]\n\
-:type arg1: <int>\n\
-:type arg2: <list>\n\
-:type arg3: <boolean>\n\
+    .. example::\n\
+        [(None, True, False, True,),]\n\
 :return: List of solutions (list of tuples of literals)\n\
+:type max_nr_of_solutions: <int>\n\
+:type var_selected: <list>\n\
+:type raw: <boolean>\n\
 :rtype: <list <tuple>>"
 );
 
@@ -716,6 +691,11 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
     #endif
 
     std::vector<Lit> var_lits;
+    // Reserve space
+    Py_ssize_t clause_size = PySequence_Size(var_selected);
+    if (clause_size > 0) {
+        var_lits.reserve((unsigned int) clause_size);
+    }
     if (!parse_clause(self, var_selected, var_lits)) {
         return 0;
     }
@@ -725,14 +705,13 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
     // std::cout << "DEBUG :: Solver: Raw sols activated: " << ((raw_solutions_activated) ? "True" : "False") << std::endl;
     // std::cout << "DEBUG :: Solver: Nb literals: " << var_lits.size() << std::endl;
 
-//     for (unsigned long i = 0; i < var_lits.size(); i++) {
-//         std::cout << "real value: " << var_lits[i]
-//                   << "; x: " << var_lits[i].toInt()
-//                   << "; sign: " << var_lits[i].sign()
-//                   << "; var: " << var_lits[i].var()
-//                   //<< "; toInt as long " << PyLong_AsLong(var_lits[i])
-//                   << '\n';
-//     }
+    // for (unsigned long i = 0; i < var_lits.size(); i++) {
+    //     std::cout << "real value: " << var_lits[i]
+    //               << "; x: " << var_lits[i].toInt()
+    //               << "; sign: " << var_lits[i].sign()
+    //               << "; var: " << var_lits[i].var()
+    //               << '\n';
+    // }
 
     PyObject *solutions = PyList_New(0);
     if (solutions == NULL) {
@@ -742,7 +721,6 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
 
     int current_nr_of_solutions = 0;
     lbool res = l_True;
-    std::vector<Lit>::iterator it;
     PyObject* solution = NULL;
     while((current_nr_of_solutions < max_nr_of_solutions) && (res == l_True)) {
 
@@ -767,7 +745,6 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
             }
 
             if (!solution) {
-                PyErr_SetString(PyExc_SystemError, "no solution");
                 Py_DECREF(solutions);
                 return NULL;
             }
@@ -780,26 +757,31 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
             if (current_nr_of_solutions < max_nr_of_solutions) {
 
                 std::vector<Lit> ban_solution;
-                const std::vector<lbool> model = self->cmsat->get_model();
+                // Reserve space
+                ban_solution.reserve(var_lits.size());
+                const std::vector<lbool>& model = self->cmsat->get_model();
 
                 // Iterate on var_selected (instead of iterate on all vars in solver)
                 for (unsigned long i = 0; i < var_lits.size(); i++) {
-
-                    // If the current variable is > 0 (false)
-                    // PS: internal value of any literal is equal to i;
-                    // human readable value is i+1 (begins with 1 instead of 0)
+                    /* Note: The internal value of each literal is equal to their position in the model (values begin from 0);
+                     * human readable value is i+1 (begins with 1 instead of 0)
+                     * Note:
+                     *  Literal "1": Lit(0, false)
+                     *  Literal "-2": Lit(1, true)
+                     */
                     if (var_lits[i].sign() == false) {
+                        // The current variable is > 0 (false)
 
                         // The current value of the variable must belong to the solver variables
                         assert(var_lits[i].var() <= (uint32_t)self->cmsat->nVars());
 
-                        // std::cout << "human readable lit: " << var_lits[i] << "; lit sign: " << ((var_lits[i].sign() == 0) ? "false" : "true") << std::endl;
+                        // std::cout << "human readable lit: " << var_lits[i] << "; var_lits[i] sign: " << ((var_lits[i].sign() == 0) ? "false" : "true") << std::endl;
                         // std::cout << "lit value: " << var_lits[i].var() << "; model status: " << model[var_lits[i].var()] << std::endl;
 
                         // Get the corresponding variable in the model, whatever its sign
                         // Add it to the futur banned clause
                         ban_solution.push_back(
-                            Lit(var_lits[i].var(), (model[var_lits[i].var()] == l_True) ? true : false)
+                            Lit(var_lits[i].var(), (model[var_lits[i].var()] == l_True))
                         );
                     }
                 }
@@ -814,6 +796,7 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
             }
         } else if (res == l_False) {
             // std::cout << "DEBUG :: Solver: No more solution" << std::endl;
+            break;
         } else if (res == l_Undef) {
             Py_DECREF(solutions);
             PyErr_SetString(PyExc_SystemError, "Nothing to do => sol undef");
@@ -822,11 +805,68 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
             // res can only be l_False, l_True, l_Undef
             assert((res == l_False) || (res == l_True) || (res == l_Undef));
             Py_DECREF(solutions);
-            return NULL;
+            return PyErr_NewExceptionWithDoc("pycyrptosat.IllegalState", "Error Occured in CyrptoMiniSat", NULL, NULL);
         }
     }
     // Return list of all solutions
     return solutions;
+}
+
+PyDoc_STRVAR(start_getting_small_clauses_doc,
+"EXPERIMENTAL\n\
+Start getting clauses."
+);
+static PyObject* start_getting_small_clauses(Solver *self, PyObject *args, PyObject *kwds)
+{
+    unsigned max_len;
+    unsigned max_glue = 1000;
+
+    static char* kwlist[] = {"max_len", "max_glue", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|I", kwlist, &max_len, &max_glue)) {
+        return NULL;
+    }
+
+    self->cmsat->start_getting_small_clauses(max_len, max_glue);
+
+    Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(get_next_small_clause_doc,
+"EXPERIMENTAL\n\
+Start getting clauses."
+);
+static PyObject* get_next_small_clause(Solver *self)
+{
+    std::vector<Lit> lits;
+    bool ret = self->cmsat->get_next_small_clause(lits);
+    if (!ret) {
+        Py_RETURN_NONE;
+    }
+
+    PyObject* list = PyList_New(lits.size());
+    for(size_t i = 0; i < lits.size(); i++) {
+        Lit l = lits[i];
+        long ll = l.var()+1;
+        if (l.sign()) {
+            ll *= -1;
+        }
+
+        PyList_SET_ITEM(list, i, PyLong_FromLong(ll));
+    }
+    return list;
+}
+
+PyDoc_STRVAR(end_getting_small_clauses_doc,
+"EXPERIMENTAL\n\
+End getting clauses."
+);
+static PyObject* end_getting_small_clauses(Solver *self)
+{
+
+    self->cmsat->end_getting_small_clauses();
+
+    Py_RETURN_NONE;
 }
 
 /*************************** Method definitions *************************/
@@ -841,13 +881,13 @@ static PyMethodDef Solver_methods[] = {
     {"add_clauses", (PyCFunction) add_clauses,  METH_VARARGS | METH_KEYWORDS, add_clauses_doc},
     {"add_xor_clause",(PyCFunction) add_xor_clause,  METH_VARARGS | METH_KEYWORDS, "adds an XOR clause to the system"},
     {"nb_vars", (PyCFunction) nb_vars, METH_VARARGS | METH_KEYWORDS, nb_vars_doc},
-    //{"nb_clauses", (PyCFunction) nb_clauses, METH_VARARGS | METH_KEYWORDS, "returns number of clauses"},
+    {"nb_clauses", (PyCFunction) nb_clauses, METH_VARARGS | METH_KEYWORDS, nb_clauses_doc},
     {"msolve_selected", (PyCFunction) msolve_selected, METH_VARARGS | METH_KEYWORDS, msolve_selected_doc},
     {"is_satisfiable", (PyCFunction) is_satisfiable, METH_VARARGS | METH_KEYWORDS, is_satisfiable_doc},
 
     {"start_getting_small_clauses", (PyCFunction) start_getting_small_clauses, METH_VARARGS | METH_KEYWORDS, start_getting_small_clauses_doc},
-    {"get_next_small_clause", (PyCFunction) get_next_small_clause, METH_VARARGS | METH_KEYWORDS, get_next_small_clause_doc},
-    {"end_getting_small_clauses", (PyCFunction) end_getting_small_clauses, METH_VARARGS | METH_KEYWORDS, end_getting_small_clauses_doc},
+    {"get_next_small_clause", (PyCFunction) get_next_small_clause, METH_NOARGS, get_next_small_clause_doc},
+    {"end_getting_small_clauses", (PyCFunction) end_getting_small_clauses, METH_NOARGS, end_getting_small_clauses_doc},
     {NULL,        NULL}  /* sentinel - marks the end of this structure */
 };
 

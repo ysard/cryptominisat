@@ -48,15 +48,15 @@ The funcion ``add_clause()`` takes an iterable list of literals such as
 ``add_clause([1])`` sets variable ``1`` to ``True``.
 
 The function ``solve()`` solves the system of equations that have been added
-with ``add_clause()``::
+with ``add_clause()``:
 
    >>> from pycryptosat import Solver
    >>> s = Solver()
    >>> s.add_clause([1, 2])
    >>> sat, solution = s.solve()
-   >>> print sat
+   >>> print(sat)
    True
-   >>> print solution
+   >>> print(solution)
    (None, True, True)
 
 The return value is a tuple. First part of the tuple indicates whether the
@@ -100,7 +100,7 @@ also have a solution with x\ :sub:`2` = False.  In Python, each clause is
 most conveniently represented as a list of integers.  Naturally, it makes
 sense to represent each solution also as a list of integers, where the sign
 corresponds to the Boolean value (+ for True and - for False) and the
-absolute value corresponds to i\ :sup:`th` variable::
+absolute value corresponds to i\ :sup:`th` variable:
 
    >>> import pycryptosat
    >>> solver = pycryptosat.Solver()

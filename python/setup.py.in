@@ -203,6 +203,7 @@ setup(
         __LIBRARY_VERSION__
     ),
     long_description=open("README.rst").read(),
+    long_description_content_type="text/x-rst",
     cmdclass={
         "test": Test,
         "build_ext": BuildExt

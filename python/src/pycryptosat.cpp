@@ -261,7 +261,7 @@ static int _add_clause(Solver *self, PyObject *clause)
 {
     // Reserve space
     Py_ssize_t clause_size = PySequence_Size(clause);
-    if (clause_size > self->tmp_cl_lits.capacity()) {
+    if (clause_size > 0) {
         self->tmp_cl_lits.reserve((unsigned int) clause_size);
     }
 

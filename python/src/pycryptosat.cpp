@@ -460,6 +460,7 @@ static PyObject* add_clauses(Solver *self, PyObject *args, PyObject *kwds)
         self->cmsat->new_vars(max_var-(long int)self->cmsat->nVars());
     }
 
+    /* Handle array.array objects */
     if (
         PyObject_HasAttr(clauses, PyUnicode_FromString("buffer_info")) &&
         PyObject_HasAttr(clauses, PyUnicode_FromString("typecode")) &&
@@ -472,6 +473,7 @@ static PyObject* add_clauses(Solver *self, PyObject *args, PyObject *kwds)
         Py_RETURN_NONE;
     }
 
+    /* Handle builtins iterables */
     PyObject *iterator = PyObject_GetIter(clauses);
     if (iterator == NULL) {
         PyErr_SetString(PyExc_TypeError, "iterable object expected");
@@ -488,7 +490,7 @@ static PyObject* add_clauses(Solver *self, PyObject *args, PyObject *kwds)
         Py_DECREF(clause);
     }
 
-    /* release reference when done */
+    // release reference when done
     Py_DECREF(iterator);
     if (PyErr_Occurred()) {
         return NULL;
@@ -846,8 +848,6 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
     }
     #else
     // Use 'i' wildcard for the boolean on version 2.x of Python
-    // O (object) [PyObject *] : Store a Python object (without any conversion) in a C object pointer.
-    // https://docs.python.org/2/c-api/arg.html
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "iO|i", kwlist,
                                      &max_nr_of_solutions,
                                      &var_selected,
@@ -866,14 +866,10 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
         return NULL;
     }
 
-    // Debug
-    // std::cout << "DEBUG :: Solver: Nb max solutions: " << max_nr_of_solutions << std::endl;
-    // std::cout << "DEBUG :: Solver: Raw sols activated: " << ((raw_solutions_activated) ? "True" : "False") << std::endl;
-    // std::cout << "DEBUG :: Solver: Nb literals: " << var_lits.size() << std::endl;
-
+    // Debug: Display var_selected
     // for (unsigned long i = 0; i < var_lits.size(); i++) {
     //     std::cout << "real value: " << var_lits[i]
-    //               << "; x: " << var_lits[i].toInt()
+    //               << "; int: " << var_lits[i].toInt()
     //               << "; sign: " << var_lits[i].sign()
     //               << "; var: " << var_lits[i].var()
     //               << '\n';
@@ -896,8 +892,8 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
 
         current_nr_of_solutions++;
 
-        // std::cout << "DEBUG :: Solver: Solution number: " << current_nr_of_solutions
-        //           << "; Satisfiable: " << ((res == l_True) ? "True" : "False") << std::endl;
+        // std::cout << "DEBUG :: Solver: Solution current number: " << current_nr_of_solutions
+        //           << "; Satisfiable: " << (res == l_True) << std::endl;
 
         if(res == l_True) {
 
@@ -936,16 +932,16 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
                      *  Literal "-2": Lit(1, true)
                      */
                     if (var_lits[i].sign() == false) {
-                        // The current variable is > 0 (false)
+                        // The current variable is > 0 (sign is false)
 
                         // The current value of the variable must belong to the solver variables
                         assert(var_lits[i].var() <= (uint32_t)self->cmsat->nVars());
 
-                        // std::cout << "human readable lit: " << var_lits[i] << "; var_lits[i] sign: " << ((var_lits[i].sign() == 0) ? "false" : "true") << std::endl;
-                        // std::cout << "lit value: " << var_lits[i].var() << "; model status: " << model[var_lits[i].var()] << std::endl;
+                        // std::cout << "human readable lit: " << var_lits[i] << "; var_lits[i] sign: " << ((var_lits[i].sign() == false) ? "false" : "true") << std::endl;
+                        // std::cout << "lit value: " << var_lits[i].var() << "; var in model: " << model[var_lits[i].var()] << std::endl;
 
                         // Get the corresponding variable in the model, whatever its sign
-                        // Add it to the futur banned clause
+                        // Add it, (with its current sign) to the future banned clause
                         ban_solution.push_back(
                             Lit(var_lits[i].var(), (model[var_lits[i].var()] == l_True))
                         );
@@ -954,14 +950,9 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
 
                 // Ban current solution for the next run
                 self->cmsat->add_clause(ban_solution);
-
-                //for (unsigned long i = 0; i < ban_solution.size(); i++) {
-                //    std::cout << ban_solution[i] << ';';
-                //}
-                //std::cout << std::endl;
             }
         } else if (res == l_False) {
-            // std::cout << "DEBUG :: Solver: No more solution" << std::endl;
+            // No more solution
             break;
         } else if (res == l_Undef) {
             Py_DECREF(solutions);

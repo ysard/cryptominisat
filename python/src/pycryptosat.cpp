@@ -535,7 +535,7 @@ Solve the system of equations that have been added with add_clause();\n\
 :return: A tuple. First part of the tuple indicates whether the problem\n\
     is satisfiable. The second part is a tuple contains the solution,\n\
     preceded by None, so you can index into it with the variable number.\n\
-    E.g. solution[1] returns the value for variabe 1.\n\
+    E.g. solution[1] returns the value for variable 1.\n\
 :type assumptions: <list>\n\
 :rtype: <tuple <tuple>>"
 );
@@ -599,7 +599,7 @@ static PyObject* solve(Solver *self, PyObject *args, PyObject *kwds)
         // res can only be l_False, l_True, l_Undef
         assert((res == l_False) || (res == l_True) || (res == l_Undef));
         Py_DECREF(result);
-        return PyErr_NewExceptionWithDoc("pycyrptosat.IllegalState", "Error Occured in CyrptoMiniSat", NULL, NULL);
+        return PyErr_NewExceptionWithDoc("pycyrptosat.IllegalState", "Error Occurred in CyrptoMiniSat", NULL, NULL);
     }
 
     return result;
@@ -628,7 +628,7 @@ static PyObject* is_satisfiable(Solver *self)
     } else {
         // res can only be l_False, l_True, l_Undef
         assert((res == l_False) || (res == l_True) || (res == l_Undef));
-        return PyErr_NewExceptionWithDoc("pycyrptosat.IllegalState", "Error Occured in CyrptoMiniSat", NULL, NULL);
+        return PyErr_NewExceptionWithDoc("pycyrptosat.IllegalState", "Error Occurred in CyrptoMiniSat", NULL, NULL);
     }
 }
 

@@ -280,7 +280,7 @@ static PyObject* add_clause(Solver *self, PyObject *args, PyObject *kwds)
         lits.reserve((unsigned int) clause_size);
     }
     if (!parse_clause(self, clause, lits)) {
-        return 0;
+        return NULL;
     }
     self->cmsat->add_clause(lits);
 
@@ -697,7 +697,7 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
         var_lits.reserve((unsigned int) clause_size);
     }
     if (!parse_clause(self, var_selected, var_lits)) {
-        return 0;
+        return NULL;
     }
 
     // Debug

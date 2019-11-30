@@ -300,6 +300,11 @@ static PyObject* add_clause(Solver *self, PyObject *args, PyObject *kwds)
 template <typename T>
 static int _add_clauses_from_array(Solver *self, const size_t array_length, const T *array)
 {
+    /* Add clauses from array.array to the solver.
+     *
+     * Note: clauses must be zero terminated in the given flat array to allow their
+     * reconstruction as independant clauses.
+     */
     if (array_length == 0) {
         return 1;
     }
@@ -313,13 +318,14 @@ static int _add_clauses_from_array(Solver *self, const size_t array_length, cons
     for (val = (long) array[k]; k < array_length; val = (long) array[++k]) {
         lits.clear();
         long int max_var = 0;
+        // Iterate on clauses zero separated, fill lits
         for (; k < array_length && val != 0; val = (long) array[++k]) {
             long var;
             bool sign;
             if (val > std::numeric_limits<int>::max()/2
                 || val < std::numeric_limits<int>::min()/2
             ) {
-                PyErr_Format(PyExc_ValueError, "integer %ld is too small or too large", val);
+                PyErr_Format(PyExc_ValueError, "integer '%ld' is too small or too large", val);
                 return 0;
             }
 
@@ -331,8 +337,10 @@ static int _add_clauses_from_array(Solver *self, const size_t array_length, cons
         }
         if (!lits.empty()) {
             if (max_var >= (long int)self->cmsat->nVars()) {
+                // Quick pre-fill new variables in the solver
                 self->cmsat->new_vars(max_var-(long int)self->cmsat->nVars()+1);
             }
+            // Add clause
             self->cmsat->add_clause(lits);
         }
     }
@@ -341,6 +349,10 @@ static int _add_clauses_from_array(Solver *self, const size_t array_length, cons
 
 static int _add_clauses_from_buffer_info(Solver *self, PyObject *buffer_info, const size_t itemsize)
 {
+    /* Extract array length and address, then call _add_clauses_from_array()
+     * itemsize: length in bytes of one array item in the internal representation.
+     * buffer_info: tuple (address, length) giving the current memory address and the length in elements of the buffer
+     */
     PyObject *py_array_length = PyTuple_GetItem(buffer_info, 1);
     if (py_array_length == NULL) {
         PyErr_SetString(PyExc_ValueError, "invalid clause array: could not get array length");
@@ -376,6 +388,11 @@ static int _add_clauses_from_buffer_info(Solver *self, PyObject *buffer_info, co
 
 static int _check_array_typecode(PyObject *clauses)
 {
+    /* Test typecode of the given array
+     * Supported typecodes:
+     *   i (int), l (long), q (long long)
+     * Note: q is supported since Python 3.3
+     */
     PyObject *py_typecode = PyObject_GetAttrString(clauses, "typecode");
     if (py_typecode == NULL) {
         PyErr_SetString(PyExc_ValueError, "invalid clause array: typecode is NULL");
@@ -413,6 +430,10 @@ static int _check_array_typecode(PyObject *clauses)
 
 static int add_clauses_array(Solver *self, PyObject *clauses)
 {
+    /* Handle array.array objects containing clauses
+     * Test typecode,
+     * Get itemsize and buffer_info attributes, then call _add_clauses_from_buffer_info()
+     */
     if (_check_array_typecode(clauses) == 0) {
         return 0;
     }
@@ -611,7 +632,7 @@ static PyObject* nb_vars(Solver *self)
 }
 
 PyDoc_STRVAR(nb_clauses_doc,
-"nb_vars()\n\
+"nb_clauses()\n\
 Return the number of clauses in the solver.\n\
 \n\
 :rtype: <int>"
@@ -665,7 +686,8 @@ PyDoc_STRVAR(solve_doc,
 "solve(assumptions=None)\n\
 Solve the system of equations that have been added with add_clause();\n\
 \n\
-.. example:: \n\
+:Example:\n\
+\n\
     from pycryptosat import Solver\n\
     >>> s = Solver()\n\
     >>> s.add_clause([1])\n\
@@ -677,10 +699,9 @@ Solve the system of equations that have been added with add_clause();\n\
     True\n\
     >>> print(solution)\n\
     (None, True, False, True)\n\
-    \n\
-    We can also try to assume any variable values for a single solver run:\n\
-    \n\
-    sat, solution = s.solve([-3])\n\
+    >>> # We can also try to assume any variable values for a single solver run:\n\
+    ...\n\
+    >>> sat, solution = s.solve([-3])\n\
     >>> print(sat)\n\
     False\n\
     >>> print(solution)\n\

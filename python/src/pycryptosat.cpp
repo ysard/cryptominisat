@@ -970,8 +970,23 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
 }
 
 PyDoc_STRVAR(start_getting_small_clauses_doc,
-"EXPERIMENTAL\n\
-Start getting clauses."
+"Start getting learnt clauses from the system.\n\
+\n\
+.. warning:: Experimental\n\
+\n\
+.. see also:: Get learnt clauses with `get_next_small_clause()`;\n\
+    You can call `end_getting_small_clauses()` at any time.\n\
+\n\
+:Example:\n\
+\n\
+    >>> import pycryptosat as pc\n\
+    >>> S = pc.Solver()\n\
+    >>> # Fill the solver, run solve, etc.\n\
+    ... # Get all clauses of size 4 or less\n\
+    ...\n\
+    >>> S.start_getting_small_clauses(4)\n\
+    >>> clause = S.get_next_small_clause()\n\
+    >>> S.end_getting_small_clauses()"
 );
 static PyObject* start_getting_small_clauses(Solver *self, PyObject *args, PyObject *kwds)
 {
@@ -990,8 +1005,15 @@ static PyObject* start_getting_small_clauses(Solver *self, PyObject *args, PyObj
 }
 
 PyDoc_STRVAR(get_next_small_clause_doc,
-"EXPERIMENTAL\n\
-Start getting clauses."
+"Get a learnt clause from the system.\n\
+\n\
+.. warning:: Experimental\n\
+\n\
+.. see also:: Start getting learnt clauses with `start_getting_small_clauses()`;\n\
+    You can call `end_getting_small_clauses()` at any time.\n\
+\n\
+:return: A clause with the specified size or less.\n\
+:rtype: <list>"
 );
 static PyObject* get_next_small_clause(Solver *self)
 {
@@ -1015,8 +1037,12 @@ static PyObject* get_next_small_clause(Solver *self)
 }
 
 PyDoc_STRVAR(end_getting_small_clauses_doc,
-"EXPERIMENTAL\n\
-End getting clauses."
+"End getting learnt clauses from the system.\n\
+\n\
+.. warning:: Experimental\n\
+\n\
+.. see also:: Start getting learnt clauses with `start_getting_small_clauses()`;\n\
+    Get learnt clauses with `get_next_small_clause()`."
 );
 static PyObject* end_getting_small_clauses(Solver *self)
 {

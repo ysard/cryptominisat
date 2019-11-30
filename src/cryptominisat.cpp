@@ -867,6 +867,11 @@ DLL_PUBLIC uint32_t SATSolver::nVars() const
     return data->solvers[0]->nVarsOutside() + data->vars_to_add;
 }
 
+DLL_PUBLIC uint32_t SATSolver::nClauses() const
+{
+    return data->cls;
+}
+
 DLL_PUBLIC void SATSolver::new_var()
 {
     new_vars(1);

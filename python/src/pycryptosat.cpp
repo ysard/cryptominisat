@@ -962,7 +962,7 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
             // res can only be l_False, l_True, l_Undef
             assert((res == l_False) || (res == l_True) || (res == l_Undef));
             Py_DECREF(solutions);
-            return PyErr_NewExceptionWithDoc("pycyrptosat.IllegalState", "Error Occured in CyrptoMiniSat", NULL, NULL);
+            return PyErr_NewExceptionWithDoc("pycyrptosat.IllegalState", "Error Occurred in CyrptoMiniSat", NULL, NULL);
         }
     }
     // Return list of all solutions

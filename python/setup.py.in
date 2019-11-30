@@ -45,9 +45,6 @@ EXTRA_ARGS = {
         # Note: c++latest could be used but is not stable.
         "extra_compile_args": ["/std:c++14", "/GL", "/O2", "/W4", "/GS-"],
         "extra_link_args": ["/LTCG"],
-        # Equivalent of CL.EXE /DLIBRARY_VERSION="\"x.x.x\"" (awesome system...)
-        # Note: This is a redefinition of the LIBRARY_VERSION macro. Only the latest is taken.
-        "define_macros": [("LIBRARY_VERSION", '\"\\\"' + __LIBRARY_VERSION__ + '\"\\\"')],
     },
     "mingw32": {
         # 06/2018: flto is still broken on Windows
@@ -177,10 +174,7 @@ EXTENSION = Extension(
     name="pycryptosat",
     sources=SOURCES,
     include_dirs=["src", "."],
-    define_macros=[
-        ("LIBRARY_VERSION", '"' + __LIBRARY_VERSION__ + '"'),
-        ("libcryptominisat5_EXPORTS", None),
-    ],
+    define_macros=[("libcryptominisat5_EXPORTS", None),],
 )
 
 setup(

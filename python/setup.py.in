@@ -40,10 +40,14 @@ __LIBRARY_VERSION__ = "${CMS_FULL_VERSION}"
 # Definition of various arguments specific to compilers and platforms
 EXTRA_ARGS = {
     "msvc": {
-        "extra_compile_args":
-            ["/std:c++11", "/LTCG", "/GL", "/O2", "/W4", "/GS-"],
-        "extra_link_args":
-            ["/std:c++11", "/LTCG", "/GL", "/O2", "/W4", "/GS-"],
+        # c++11 doesn't really exist in Visual Studio...
+        # But c++14 is "already" implemented starting from VS 2015.
+        # Note: c++latest could be used but is not stable.
+        "extra_compile_args": ["/std:c++14", "/GL", "/O2", "/W4", "/GS-"],
+        "extra_link_args": ["/LTCG"],
+        # Equivalent of CL.EXE /DLIBRARY_VERSION="\"x.x.x\"" (awesome system...)
+        # Note: This is a redefinition of the LIBRARY_VERSION macro. Only the latest is taken.
+        "define_macros": [("LIBRARY_VERSION", '\"\\\"' + __LIBRARY_VERSION__ + '\"\\\"')],
     },
     "mingw32": {
         # 06/2018: flto is still broken on Windows

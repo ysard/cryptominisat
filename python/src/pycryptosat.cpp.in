@@ -37,8 +37,10 @@ using namespace CMSat;
 
 // Define visibility of functions
 // Ex: PyMODINIT_FUNC PyInit_pycryptosat(void) __attribute__ ((visibility ("default") ));
-#if defined _WIN32 || defined __CYGWIN__
-    #define DLL_PUBLIC __declspec(dllexport)
+#if defined _WIN332
+    // __declspec(dllexport) is already supported on cygwin,
+    // and not supported (no effect ?) on MSVC 2017
+    #define DLL_PUBLIC
 #else
     #if __GNUC__ >= 4
         #define DLL_PUBLIC __attribute__ ((visibility ("default")))

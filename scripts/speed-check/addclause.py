@@ -21,10 +21,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from __future__ import print_function
 from array import array
 from collections import defaultdict
 from itertools import chain
+from functools import partial
 from time import time
+import timeit
 import pycryptosat
 import pycosat
 
@@ -46,25 +49,37 @@ def ps_setup(clauses, m):
 def ps_solve(iter_sol):
     return next(iter_sol)
 
+def _build_clause_list(n):
+    return list(chain.from_iterable(
+        [(-x, x + n, x + int(n/2)), (-x, x + n, x + int(n/2))] for x in range(1, n+1)
+    ))
+
+def _build_clause_array(clause_list):
+    return array("i", chain.from_iterable(c + (0,) for c in clause_list))
 
 if __name__ == "__main__":
     n = 550*1000
-    clause_list = list(chain.from_iterable(
-        [(-x, x + n, x + int(n/2)), (-x, x + n, x + int(n/2))] for x in range(1, n+1)
-    ))
-    clause_array = array("i", chain.from_iterable(c + (0,) for c in clause_list))
+    clause_list = _build_clause_list(n)
+    clause_array = _build_clause_array(clause_list)
     m = max(clause_array)
 
+    build_clause_list = partial(_build_clause_list, n)
+    build_clause_array = partial(_build_clause_array, clause_list)
+    times_build_clause_list = sorted(timeit.repeat(stmt=build_clause_list, repeat=3, number=5))
+    times_build_clause_array = sorted(timeit.repeat(stmt=build_clause_array, repeat=3, number=5))
+    print("build_clause_list :", *map("{:5.3f}".format, times_build_clause_list))
+    print("build_clause_array:", *map("{:5.3f}".format, times_build_clause_array))
+
     all_times = defaultdict(list)
-    my_list = ("CMS", cms_setup, cms_solve), ("Pycosat", ps_setup, ps_solve)
-    #my_list = ("CMS", cms_setup, cms_solve), (None, None, None)
-    for solver_type, setup, solve in list(my_list):
+    my_solver_list = [("CMS", cms_setup, cms_solve), ("Pycosat", ps_setup, ps_solve)]
+    #my_solver_list = [("CMS", cms_setup, cms_solve), (None, None, None)]
+    for solver_type, setup, solve in my_solver_list:
         if solver_type is None:
             continue
 
-        my_type_list = ("list", clause_list), ("array", clause_array)
-        #my_type_list = ("list", clause_list), (None, None)
-        for clauses_type, clauses in (my_type_list):
+        my_type_list = [("list", clause_list), ("array", clause_array)]
+        #my_type_list = [("list", clause_list), (None, None)]
+        for clauses_type, clauses in my_type_list:
             if clauses is None:
                 continue
 

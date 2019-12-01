@@ -197,21 +197,44 @@ Then there is no solution and the solver returns `s UNSATISFIABLE`.
 
 Python usage
 -----
-The python module works with both Python 2 and Python 3. It must be compiled as per (notice "python-dev"):
+The python module works with both Python 2 and Python 3.
+
+
+- Installation for regular users (recommended):
+
+It can be installed from directly PyPI (Python Package Index),
+the official third-party software repository for Python language.
 
 ```
+pip install pycryptosat
+```
+
+
+- Installation for developers:
+
+It can be compiled from source as per:
+
+```
+# Install requirements
 sudo apt-get install build-essential cmake
 sudo apt-get install zlib1g-dev libboost-program-options-dev libm4ri-dev libsqlite3-dev
+## For Python 2
+sudo apt-get install python-setuptools python-dev
+## For Python 3
 sudo apt-get install python3-setuptools python3-dev
-tar xzvf cryptominisat-version.tar.gz
-cd cryptominisat-version
-mkdir build && cd build
-cmake ..
-make
-sudo make install
-sudo ldconfig
 
+# Compile
+tar xzvf cryptominisat-<version>.tar.gz
+cd cryptominisat-<version>
+mkdir build && cd build
+
+## For Python 2
+cmake -DFORCE_PYTHON2=ON ..
+
+cmake ..
+make pycryptosat_pypi_dev_install
 ```
+
 
 You can then use it as:
 

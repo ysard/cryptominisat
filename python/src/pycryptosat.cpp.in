@@ -1218,8 +1218,8 @@ MODULE_INIT_FUNC(pycryptosat)
     if (PyErr_Occurred())
     {
         PyErr_SetString(PyExc_ImportError, "pycryptosat: initialisation failed");
-        Py_DECREF(m);
-        m = NULL;
+        Py_XDECREF(m);
+        return NULL;
     }
     return m;
 }

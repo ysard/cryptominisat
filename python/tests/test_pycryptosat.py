@@ -155,8 +155,7 @@ class TestDump(unittest.TestCase):
         self.solver = Solver()
 
     def test_max_glue_missing(self):
-        self.assertRaises(TypeError,
-                          self.solver.start_getting_small_clauses, 4)
+        self.solver.start_getting_small_clauses(4)
 
     def test_one_dump(self):
         with open("tests/test.cnf", "r") as x:

@@ -1,40 +1,38 @@
-===========================================
+=====================================================
 pycryptosat: bindings to the CryptoMiniSat SAT solver
-===========================================
+=====================================================
 
 This directory provides Python bindings to CryptoMiniSat on the C++ level,
 i.e. when importing pycryptosat, the CryptoMiniSat solver becomes part of the
 Python process itself.
 
 Compiling
------
+---------
 The pycryptosat python package compiles while compiling CryptoMiniSat. It
 cannotbe compiled on its own, it must be compiled at the same time as
 CryptoMiniSat. You will need the python development libraries in order to
-compile:
+compile::
 
-```
-apt-get install python-dev
-```
+   apt-get install python-dev
 
-After this, cmake then indicate that pycryptosat will be compiled:
 
-```
-cd cryptominisat
-mkdir build
-cd build
-cmake ..
-[...]
--- Found PythonInterp: /usr/bin/python2.7 (found suitable version "2.7.9", minimum required is "2.7")
--- Found PythonLibs: /usr/lib/x86_64-linux-gnu/libpython2.7.so (found suitable version "2.7.9", minimum required is "2.7")
--- PYTHON_EXECUTABLE:FILEPATH=/usr/bin/python2.7
--- PYTHON_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libpython2.7.so
--- PYTHON_INCLUDE_DIR:FILEPATH=/usr/include/python2.7
--- PYTHONLIBS_VERSION_STRING=2.7.9
--- OK, found python interpreter, libs and header files
--- Building python interface
-[...]
-```
+After this, cmake then indicate that pycryptosat will be compiled::
+
+   cd cryptominisat
+   mkdir build
+   cd build
+   cmake ..
+   [...]
+   -- Found PythonInterp: /usr/bin/python2.7 (found suitable version "2.7.9", minimum required is "2.7")
+   -- Found PythonLibs: /usr/lib/x86_64-linux-gnu/libpython2.7.so (found suitable version "2.7.9", minimum required is "2.7")
+   -- PYTHON_EXECUTABLE:FILEPATH=/usr/bin/python2.7
+   -- PYTHON_LIBRARY:FILEPATH=/usr/lib/x86_64-linux-gnu/libpython2.7.so
+   -- PYTHON_INCLUDE_DIR:FILEPATH=/usr/include/python2.7
+   -- PYTHONLIBS_VERSION_STRING=2.7.9
+   -- OK, found python interpreter, libs and header files
+   -- Building python interface
+   [...]
+
 
 It will then generate the pycryptosat library and install it when calling
 `make install`.
@@ -56,9 +54,9 @@ with ``add_clause()``:
    >>> s = Solver()
    >>> s.add_clause([1, 2])
    >>> sat, solution = s.solve()
-   >>> print sat
+   >>> print(sat)
    True
-   >>> print solution
+   >>> print(solution)
    (None, True, True)
 
 The return value is a tuple. First part of the tuple indicates whether the
@@ -80,7 +78,7 @@ If instead of an assumption ``add_clause()`` would have been used, subsequent
   * ``confl_limit``: the propagation limit (integer)
   * ``verbose``: the verbosity level (integer)
 
-Both ``time_limit`` and ``confl_limit`` set a budget to the solver. The former is based on time elapsed while the former is based on number of conflicts met during search. If the solver runs out of budget, it returns with ``(None, None)``. If both limits are used, the solver will terminate whenever one of the limits are hit (whichever first). Warning: Results from ``time_limit`` may differ from run to run, depending on compute load, etc. Use ``confl_limit`` for more reproducible runs.
+Both ``time_limit`` and ``confl_limit`` set a budget to the solver. The former is based on time elapsed while the latter is based on the number of conflicts met during search. If the solver runs out of budget, it returns with ``(None, None)``. If both limits are used, the solver will terminate whenever one of the limits is reached (whichever comes first). Warning: Results from ``time_limit`` may differ from run to run, depending on compute load, etc. Use ``confl_limit`` for more reproducible runs.
 
 Example
 -------
@@ -102,7 +100,7 @@ also have a solution with x\ :sub:`2` = False.  In Python, each clause is
 most conveniently represented as a list of integers.  Naturally, it makes
 sense to represent each solution also as a list of integers, where the sign
 corresponds to the Boolean value (+ for True and - for False) and the
-absolute value corresponds to i\ :sup:`th` variable::
+absolute value corresponds to i\ :sup:`th` variable:
 
    >>> import pycryptosat
    >>> solver = pycryptosat.Solver()

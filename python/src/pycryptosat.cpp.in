@@ -57,12 +57,14 @@ using namespace CMSat;
 #ifdef IS_PY3K
     #define IS_INT(x)  PyLong_Check(x)
 
+    // PyInit returns NULL on error or the module on success
     #define MODULE_INIT_FUNC(name) \
         PyMODINIT_FUNC PyInit_ ## name(void) DLL_PUBLIC; \
         PyMODINIT_FUNC PyInit_ ## name(void)
 #else
     #define IS_INT(x)  (PyInt_Check(x) || PyLong_Check(x))
 
+    // init returns nothing, neither in case of error nor in case of success
     #define MODULE_INIT_FUNC(name) \
         static PyObject *PyInit_ ## name(void); \
         PyMODINIT_FUNC init ## name(void) DLL_PUBLIC; \
@@ -1183,8 +1185,6 @@ MODULE_INIT_FUNC(pycryptosat)
 
     pycryptosat_SolverType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&pycryptosat_SolverType) < 0) {
-        // Return NULL on Python3 and on Python2 with MODULE_INIT_FUNC macro
-        // In pure Python2: return nothing.
         return NULL;
     }
 
@@ -1206,8 +1206,6 @@ MODULE_INIT_FUNC(pycryptosat)
     m = Py_InitModule3(MODULE_NAME, module_methods, MODULE_DOC);
     #endif
 
-    // Return NULL on Python3 and on Python2 with MODULE_INIT_FUNC macro
-    // In pure Python2: return nothing.
     if (!m) {
         Py_XDECREF(m);
         return NULL;

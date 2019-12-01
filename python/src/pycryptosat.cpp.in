@@ -905,6 +905,10 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
     int current_nr_of_solutions = 0;
     lbool res = l_True;
     PyObject* solution = NULL;
+    // Reserve space for banned solutions
+    std::vector<Lit> ban_solution;
+    ban_solution.reserve(var_lits.size());
+
     while((current_nr_of_solutions < max_nr_of_solutions) && (res == l_True)) {
 
         Py_BEGIN_ALLOW_THREADS      /* release GIL */
@@ -939,9 +943,8 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
             // Ban previous solution
             if (current_nr_of_solutions < max_nr_of_solutions) {
 
-                std::vector<Lit> ban_solution;
-                // Reserve space
-                ban_solution.reserve(var_lits.size());
+                ban_solution.clear();
+
                 const std::vector<lbool>& model = self->cmsat->get_model();
 
                 // Iterate on var_selected (instead of iterate on all vars in solver)
@@ -952,21 +955,23 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
                      *  Literal "1": Lit(0, false)
                      *  Literal "-2": Lit(1, true)
                      */
-                    if (var_lits[i].sign() == false) {
-                        // The current variable is > 0 (sign is false)
+                    if (var_lits[i].sign())
+                        // Do not care of negative variables
+                        continue;
 
-                        // The current value of the variable must belong to the solver variables
-                        assert(var_lits[i].var() <= (uint32_t)self->cmsat->nVars());
+                    // The current variable is > 0 (sign is false)
 
-                        // std::cout << "human readable lit: " << var_lits[i] << "; var_lits[i] sign: " << ((var_lits[i].sign() == false) ? "false" : "true") << std::endl;
-                        // std::cout << "lit value: " << var_lits[i].var() << "; var in model: " << model[var_lits[i].var()] << std::endl;
+                    // The current value of the variable must belong to the solver variables
+                    assert(var_lits[i].var() <= (uint32_t)self->cmsat->nVars());
 
-                        // Get the corresponding variable in the model, whatever its sign
-                        // Add it, (with its current sign) to the future banned clause
-                        ban_solution.push_back(
-                            Lit(var_lits[i].var(), (model[var_lits[i].var()] == l_True))
-                        );
-                    }
+                    // std::cout << "human readable lit: " << var_lits[i] << "; var_lits[i] sign: " << ((var_lits[i].sign() == false) ? "false" : "true") << std::endl;
+                    // std::cout << "lit value: " << var_lits[i].var() << "; var in model: " << model[var_lits[i].var()] << std::endl;
+
+                    // Get the corresponding variable in the model, whatever its sign
+                    // Add it, (with its current sign) to the future banned clause
+                    ban_solution.push_back(
+                        Lit(var_lits[i].var(), (model[var_lits[i].var()] == l_True))
+                    );
                 }
 
                 // Ban current solution for the next run

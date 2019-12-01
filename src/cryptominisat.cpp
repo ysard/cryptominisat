@@ -646,9 +646,8 @@ DLL_PUBLIC bool SATSolver::add_clause(const vector< Lit >& lits)
         data->vars_to_add = 0;
 
         ret = data->solvers[0]->add_clause_outer(lits);
-        data->cls++;
     }
-
+    data->cls++;
     return ret;
 }
 
@@ -691,9 +690,8 @@ DLL_PUBLIC bool SATSolver::add_xor_clause(const std::vector<unsigned>& vars, boo
         data->vars_to_add = 0;
 
         ret = data->solvers[0]->add_xor_clause_outer(vars, rhs);
-        data->cls++;
     }
-
+    data->cls++;
     return ret;
 }
 

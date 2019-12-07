@@ -210,6 +210,11 @@ class TestSolve(unittest.TestCase):
     def test_add_clauses_wrong_zero(self):
         self.assertRaises(TypeError, self.solver.add_clause, [[1, 0], [-1]])
 
+    def test_add_clauses_array_wrong_zero(self):
+        cls = array('i', [1, 0, 0])
+        self.solver.add_clause(cls)
+        self.assertEqual(self.solver.nb_clauses(), 1)
+
     def test_add_clauses_array_SAT(self):
         cls = array('i', [1, 2, 0, 1, 2, 0])
         self.solver.add_clauses(cls)
@@ -223,8 +228,9 @@ class TestSolve(unittest.TestCase):
         self.assertEqual(res, False)
 
     def test_add_clauses_array_unterminated(self):
-        cls = array('i', [1, 2, 0, 1, 2])
+        cls = array('i', [1, 2, 1, 2])
         self.assertRaises(ValueError, self.solver.add_clause, cls)
+        self.assertRaises(ValueError, self.solver.add_clauses, cls)
 
     def test_bad_iter(self):
         class Liar:

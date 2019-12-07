@@ -489,7 +489,7 @@ static PyObject* add_clauses(Solver *self, PyObject *args, PyObject *kwds)
     ) {
         int ret = add_clauses_array(self, clauses);
         if (ret == 0 || PyErr_Occurred()) {
-            return 0;
+            return NULL;
         }
         Py_RETURN_NONE;
     }

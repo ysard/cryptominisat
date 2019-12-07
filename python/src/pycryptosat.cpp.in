@@ -318,11 +318,10 @@ static int _add_clauses_from_array(Solver *self, const size_t array_length, cons
             lits.push_back(Lit(var, sign));
         }
         if (!lits.empty()) {
+            // Quick pre-fill new variables in the solver, and add the clause
             if (max_var >= (long int)self->cmsat->nVars()) {
-                // Quick pre-fill new variables in the solver
                 self->cmsat->new_vars(max_var-(long int)self->cmsat->nVars()+1);
             }
-            // Add clause
             self->cmsat->add_clause(lits);
         }
     }
@@ -332,8 +331,9 @@ static int _add_clauses_from_array(Solver *self, const size_t array_length, cons
 static int _add_clauses_from_buffer_info(Solver *self, PyObject *buffer_info, const size_t itemsize)
 {
     /* Extract array length and address, then call _add_clauses_from_array()
-     * itemsize: length in bytes of one array item in the internal representation.
-     * buffer_info: tuple (address, length) giving the current memory address and the
+     *
+     * - itemsize: length in bytes of one array item in the internal representation.
+     * - buffer_info: tuple (address, length) giving the current memory address and the
      * length in elements of the buffer.
      */
     PyObject *py_array_length = PyTuple_GetItem(buffer_info, 1);
@@ -913,7 +913,7 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
         return NULL;
     }
 
-    // Debug: Display var_selected
+    // Debug: Example to display literal attributes
     // for (unsigned long i = 0; i < var_lits.size(); i++) {
     //     std::cout << "real value: " << var_lits[i]
     //               << "; int: " << var_lits[i].toInt()
@@ -942,9 +942,6 @@ static PyObject* msolve_selected(Solver *self, PyObject *args, PyObject *kwds)
         Py_END_ALLOW_THREADS
 
         current_nr_of_solutions++;
-
-        // std::cout << "DEBUG :: Solver: Solution current number: " << current_nr_of_solutions
-        //           << "; Satisfiable: " << (res == l_True) << std::endl;
 
         if(res == l_True) {
 

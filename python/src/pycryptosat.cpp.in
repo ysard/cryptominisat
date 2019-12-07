@@ -448,7 +448,14 @@ Add a clause to the solver.\n\
 :param clause: An iterable containing literals (ints)\n\
 Alternatively, this can be a flat array.array (typecode 'i', 'l', or 'q')\n\
 of zero separated and terminated clauses of literals (ints).\n\
-:type clause: <list> or <array.array>"
+:key: max_var: (Optional) Maximum value of the literals of the clause.\n\
+    .. warning:: This optional value must be carefully specified.\n\
+    It is designed to improve performance in rare situations during massive\n\
+    insertions. A value higher than the actual maximum value in the clause\n\
+    may have unexpected consequences.\n\
+    Most of the time you don't want to worry about it.\n\
+:type clause: <list> or <array.array>\n\
+:type max_var: <int>"
 );
 
 static PyObject* add_clause(Solver *self, PyObject *args, PyObject *kwds)
@@ -492,7 +499,14 @@ Add iterable of clauses to the solver.\n\
     literals (ints)\n\
     Alternatively, this can be a flat array.array (typecode 'i', 'l', or 'q')\n\
     of zero separated and terminated clauses of literals (ints).\n\
-:type clauses: <list> or <array.array>"
+:key: max_var: (Optional) Maximum value of the literals of the clause.\n\
+    .. warning:: This optional value must be carefully specified.\n\
+    It is designed to improve performance in rare situations during massive\n\
+    insertions. A value higher than the actual maximum value in the clause\n\
+    may have unexpected consequences.\n\
+    Most of the time you don't want to worry about it.\n\
+:type clauses: <list> or <array.array>\n\
+:type max_var: <int>"
 );
 
 static PyObject* add_clauses(Solver *self, PyObject *args, PyObject *kwds)

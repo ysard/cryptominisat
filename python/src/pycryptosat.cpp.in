@@ -91,8 +91,6 @@ typedef struct {
     std::vector<Lit> tmp_cl_lits;
 } Solver;
 
-static int add_clauses_array(Solver *self, PyObject *clauses);
-
 
 static const char solver_create_docstring[] = \
 "Solver(verbose=0, time_limit=0.0, confl_limit=0, threads=1)\n\
@@ -262,6 +260,10 @@ static int parse_xor_clause(
 
 static int _add_clause(Solver *self, PyObject *clause)
 {
+    /* Add clauses from Python objects other than arrays.
+     * Used by add_clause and add_clauses exposed functions.
+     */
+
     // Reserve space
     Py_ssize_t clause_size = PySequence_Size(clause);
     if (clause_size > 0) {
@@ -277,53 +279,10 @@ static int _add_clause(Solver *self, PyObject *clause)
     return 1;
 }
 
-PyDoc_STRVAR(add_clause_doc,
-"add_clause(clause)\n\
-Add a clause to the solver.\n\
-\n\
-:param clause: An iterable containing literals (ints)\n\
-    Alternatively, this can be a flat array.array (typecode 'i', 'l', or 'q')\n\
-    of zero separated and terminated clauses of literals (ints).\n\
-:type clause: <list> or <array.array>"
-);
-
-static PyObject* add_clause(Solver *self, PyObject *args, PyObject *kwds)
-{
-    static char const *kwlist[] = {"clause", "max_var", NULL};
-    PyObject *clause;
-    long int max_var = 0;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|l", const_cast<char**>(kwlist), &clause, &max_var)) {
-        return NULL;
-    }
-    if (max_var > (long int)self->cmsat->nVars()) {
-        self->cmsat->new_vars(max_var-(long int)self->cmsat->nVars());
-    }
-
-    /* Handle array.array objects */
-    if (
-        PyObject_HasAttr(clause, PyUnicode_FromString("buffer_info")) &&
-        PyObject_HasAttr(clause, PyUnicode_FromString("typecode")) &&
-        PyObject_HasAttr(clause, PyUnicode_FromString("itemsize"))
-    ) {
-        int ret = add_clauses_array(self, clause);
-        if (ret == 0 || PyErr_Occurred()) {
-            return NULL;
-        }
-        Py_RETURN_NONE;
-    }
-
-    /* Handle builtins iterables */
-    if (!_add_clause(self, clause)) {
-        return NULL;
-    }
-
-    Py_RETURN_NONE;
-}
-
 template <typename T>
 static int _add_clauses_from_array(Solver *self, const size_t array_length, const T *array)
 {
-    /* Add clauses from array.array to the solver.
+    /* Add clauses from a Python array to the solver.
      *
      * Note: clauses must be zero terminated in the given flat array to allow their
      * reconstruction as independant clauses.
@@ -374,7 +333,8 @@ static int _add_clauses_from_buffer_info(Solver *self, PyObject *buffer_info, co
 {
     /* Extract array length and address, then call _add_clauses_from_array()
      * itemsize: length in bytes of one array item in the internal representation.
-     * buffer_info: tuple (address, length) giving the current memory address and the length in elements of the buffer
+     * buffer_info: tuple (address, length) giving the current memory address and the
+     * length in elements of the buffer.
      */
     PyObject *py_array_length = PyTuple_GetItem(buffer_info, 1);
     if (py_array_length == NULL) {
@@ -453,7 +413,7 @@ static int _check_array_typecode(PyObject *clauses)
 
 static int add_clauses_array(Solver *self, PyObject *clauses)
 {
-    /* Handle array.array objects containing clauses
+    /* Handle Python array objects containing flat clauses.
      * Test typecode,
      * Get itemsize and buffer_info attributes, then call _add_clauses_from_buffer_info()
      */
@@ -481,6 +441,49 @@ static int add_clauses_array(Solver *self, PyObject *clauses)
     return ret;
 }
 
+PyDoc_STRVAR(add_clause_doc,
+"add_clause(clause)\n\
+Add a clause to the solver.\n\
+\n\
+:param clause: An iterable containing literals (ints)\n\
+Alternatively, this can be a flat array.array (typecode 'i', 'l', or 'q')\n\
+of zero separated and terminated clauses of literals (ints).\n\
+:type clause: <list> or <array.array>"
+);
+
+static PyObject* add_clause(Solver *self, PyObject *args, PyObject *kwds)
+{
+    static char const *kwlist[] = {"clause", "max_var", NULL};
+    PyObject *clause;
+    long int max_var = 0;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|l", const_cast<char**>(kwlist), &clause, &max_var)) {
+        return NULL;
+    }
+    if (max_var > (long int)self->cmsat->nVars()) {
+        self->cmsat->new_vars(max_var-(long int)self->cmsat->nVars());
+    }
+
+    /* Handle array objects */
+    if (
+        PyObject_HasAttr(clause, PyUnicode_FromString("buffer_info")) &&
+        PyObject_HasAttr(clause, PyUnicode_FromString("typecode")) &&
+        PyObject_HasAttr(clause, PyUnicode_FromString("itemsize"))
+    ) {
+        int ret = add_clauses_array(self, clause);
+        if (ret == 0 || PyErr_Occurred()) {
+            return NULL;
+        }
+        Py_RETURN_NONE;
+    }
+
+    /* Handle classic iterables */
+    if (!_add_clause(self, clause)) {
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
 PyDoc_STRVAR(add_clauses_doc,
 "add_clauses(clauses)\n\
 Add iterable of clauses to the solver.\n\
@@ -504,7 +507,7 @@ static PyObject* add_clauses(Solver *self, PyObject *args, PyObject *kwds)
         self->cmsat->new_vars(max_var-(long int)self->cmsat->nVars());
     }
 
-    /* Handle array.array objects */
+    /* Handle array objects */
     if (
         PyObject_HasAttr(clauses, PyUnicode_FromString("buffer_info")) &&
         PyObject_HasAttr(clauses, PyUnicode_FromString("typecode")) &&
@@ -517,7 +520,7 @@ static PyObject* add_clauses(Solver *self, PyObject *args, PyObject *kwds)
         Py_RETURN_NONE;
     }
 
-    /* Handle builtins iterables */
+    /* Handle classic iterables */
     PyObject *iterator = PyObject_GetIter(clauses);
     if (iterator == NULL) {
         PyErr_SetString(PyExc_TypeError, "iterable object expected");

@@ -56,6 +56,7 @@ using namespace CMSat;
 
 #ifdef IS_PY3K
     #define IS_INT(x)  PyLong_Check(x)
+    #define PYLONG_FROM_LONG(x)  PyLong_FromLong(x)
 
     // PyInit returns NULL on error or the module on success
     #define MODULE_INIT_FUNC(name) \
@@ -63,6 +64,7 @@ using namespace CMSat;
         PyMODINIT_FUNC PyInit_ ## name(void)
 #else
     #define IS_INT(x)  (PyInt_Check(x) || PyLong_Check(x))
+    #define PYLONG_FROM_LONG(x)  PyInt_FromLong(x)
 
     // init returns nothing, neither in case of error nor in case of success
     #define MODULE_INIT_FUNC(name) \
@@ -646,11 +648,7 @@ static PyObject* get_raw_solution(SATSolver *cmsat) {
 
             sign = (model[var] == l_True) ? 1 : -1;
 
-            #ifdef IS_PY3K
-            py_value = PyLong_FromLong((var + 1) * sign);
-            #else
-            py_value = PyInt_FromLong((var + 1) * sign);
-            #endif
+            py_value = PYLONG_FROM_LONG((var + 1) * sign);
 
             PyTuple_SET_ITEM(tuple, (Py_ssize_t)var, py_value);
         }
@@ -667,11 +665,7 @@ Return the number of literals in the solver.\n\
 
 static PyObject* nb_vars(Solver *self)
 {
-    #ifdef IS_PY3K
-    return PyLong_FromLong(self->cmsat->nVars());
-    #else
-    return PyInt_FromLong(self->cmsat->nVars());
-    #endif
+    return PYLONG_FROM_LONG(self->cmsat->nVars());
 }
 
 PyDoc_STRVAR(nb_clauses_doc,
@@ -683,11 +677,7 @@ Return the number of clauses in the solver.\n\
 
 static PyObject* nb_clauses(Solver *self)
 {
-    #ifdef IS_PY3K
-    return PyLong_FromLong(self->cmsat->nClauses());
-    #else
-    return PyInt_FromLong(self->cmsat->nClauses());
-    #endif
+    return PYLONG_FROM_LONG(self->cmsat->nClauses());
 }
 
 static int parse_assumption_lits(PyObject* assumptions, SATSolver* cmsat, std::vector<Lit>& assumption_lits)
@@ -1131,7 +1121,7 @@ static PyObject* get_next_small_clause(Solver *self)
             ll *= -1;
         }
 
-        PyList_SET_ITEM(list, i, PyLong_FromLong(ll));
+        PyList_SET_ITEM(list, i, PYLONG_FROM_LONG(ll));
     }
     return list;
 }
@@ -1174,11 +1164,7 @@ static PyObject* get_conflict(Solver *self)
             value *= -1;
         }
 
-        #ifdef IS_PY3K
-        PyObject *item = PyLong_FromLong(value);
-        #else
-        PyObject *item = PyInt_FromLong(value);
-        #endif
+        PyObject *item = PYLONG_FROM_LONG(value);
 
         PyList_SET_ITEM(incorrect_assumptions, i, item);
     }

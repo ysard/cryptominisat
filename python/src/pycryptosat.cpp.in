@@ -1305,8 +1305,9 @@ MODULE_INIT_FUNC(pycryptosat)
 
     // Add the Solver type.
     Py_INCREF(&pycryptosat_SolverType);
-    if (PyModule_AddObject(m, "Solver", (PyObject *)&pycryptosat_SolverType)) {
+    if (PyModule_AddObject(m, "Solver", (PyObject *)&pycryptosat_SolverType) == -1) {
         Py_DECREF(m);
+        Py_DECREF(&pycryptosat_SolverType);
         return NULL;
     }
 

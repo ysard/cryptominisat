@@ -1249,13 +1249,14 @@ static PyTypeObject pycryptosat_SolverType = {
     0,                          /* tp_descr_set */
     0,                          /* tp_dictoffset */
     (initproc)Solver_init,      /* tp_init */
+    0,                          /* tp_alloc */
+    PyType_GenericNew,          /* tp_new */
 };
 
 MODULE_INIT_FUNC(pycryptosat)
 {
     PyObject* m;
 
-    pycryptosat_SolverType.tp_new = PyType_GenericNew;
     if (PyType_Ready(&pycryptosat_SolverType) < 0) {
         return NULL;
     }

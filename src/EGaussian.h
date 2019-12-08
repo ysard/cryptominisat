@@ -88,15 +88,19 @@ class EGaussian {
     matrixset matrix; // The current matrixset, i.e. the one we are working on, or the last one we worked on
 
 
+    //Cleanup
     bool clean_xors();
     void clear_gwatches(const uint32_t var);
-    void print_matrix(matrixset& m) const ;   // print matrix
-    void eliminate(matrixset& m) ;            //gaussian elimination
+    void delete_gauss_watch_this_matrix();
+    inline void delete_gausswatch(const bool orig_basic, const uint32_t  row_n);
+
+    void eliminate(matrixset& m);
     gret adjust_matrix(matrixset& matrix); // adjust matrix, include watch, check row is zero, etc.
 
     inline void propagation_twoclause();
     inline void conflict_twoclause(PropBy& confl);
-    inline void delete_gausswatch(const bool orig_basic, const uint32_t  row_n);
+
+    void print_matrix(matrixset& m) const;
 
   public:
     // variable
@@ -118,7 +122,8 @@ class EGaussian {
     void fill_matrix(matrixset& origMat); // Fills the origMat matrix
     uint32_t select_columnorder(matrixset& origMat); // Fills var_to_col and col_to_var of the origMat matrix.
 
-    //execute gaussian
+    ///execute gaussian
+    ///return FALSE only in case of unit conflict
     bool  find_truths2(
         const GaussWatched* i,
         GaussWatched*& j,

@@ -1235,7 +1235,7 @@ lbool Searcher::search()
                 && !clean_clauses_if_needed()
             ) {
                 return l_False;
-            };
+            }
             reduce_db_if_needed();
             dec_ret = new_decision<update_bogoprops>();
             if (dec_ret != l_Undef) {
@@ -2110,9 +2110,14 @@ void Searcher::rebuildOrderHeap()
 {
     vector<uint32_t> vs;
     for (uint32_t v = 0; v < nVars(); v++) {
-        if (varData[v].removed == Removed::none
-            && value(v) == l_Undef
+        if (varData[v].removed != Removed::none
+            //NOTE: the level==0 check is needed because SLS calls this
+            //when there is a solution already, but we should only skip
+            //level 0 assignements
+            || (value(v) != l_Undef && varData[v].level == 0)
         ) {
+            continue;
+        } else {
             vs.push_back(v);
         }
     }
@@ -2756,8 +2761,10 @@ llbool Searcher::Gauss_elimination()
     assert(qhead == trail.size());
     assert(gqhead <= qhead);
 
+    bool unit_conflict_in_some_matrix = false;
     while (gqhead <  qhead) {
         const Lit p = trail[gqhead++];
+        assert(gwatches.size() > p.var());
         vec<GaussWatched>& ws = gwatches[p.var()];
         GaussWatched* i = ws.begin();
         GaussWatched* j = i;
@@ -2774,6 +2781,7 @@ llbool Searcher::Gauss_elimination()
                 continue;
             } else {
                 // only in conflict two variable
+                unit_conflict_in_some_matrix = true;
                 break;
             }
         }
@@ -2803,10 +2811,26 @@ llbool Searcher::Gauss_elimination()
             gqueuedata[0].big_gaussnum++;
             sum_EnGauss++;
         }
+
+        //There was a unit conflict but this is not that matrix.
+        //Just skip.
+        if (unit_conflict_in_some_matrix && gqd.ret_gauss !=1) {
+            continue;
+        }
+
+
         switch (gqd.ret_gauss) {
             case 1:{ // unit conflict
                 //assert(confl.getType() == PropByType::binary_t && "this should hold, right?");
                 bool ret = handle_conflict<false>(gqd.confl);
+#ifdef VERBOSE_DEBUG
+                cout << "Handled conflict"
+                << " conf level:" <<  varData[gqd.confl.lit2().var()].level
+                << " conf value: " << value(gqd.confl.lit2())
+                << " failbin level: " << varData[solver->failBinLit.var()].level
+                << " failbin value: " << value(solver->failBinLit)
+                << endl;
+#endif
 
                 gqd.big_conflict++;
                 sum_Enconflict++;
@@ -3032,7 +3056,7 @@ void Searcher::fill_assumptions_set_from(const vector<AssumptionPair>& fill_from
 {
     #ifdef SLOW_DEBUG
     for(auto x: assumptionsSet) {
-        assert(!x);
+        assert(x == l_Undef);
     }
     #endif
 
@@ -3043,11 +3067,11 @@ void Searcher::fill_assumptions_set_from(const vector<AssumptionPair>& fill_from
     for(const AssumptionPair lit_pair: assumptions) {
         const Lit lit = lit_pair.lit_inter;
         if (lit.var() < assumptionsSet.size()) {
-            if (assumptionsSet[lit.var()]) {
+            if (assumptionsSet[lit.var()] != l_Undef) {
                 //Assumption contains the same literal twice. Shouldn't really be allowed...
                 //assert(false && "Either the assumption set contains the same literal twice, or something is very wrong in the solver.");
             } else {
-                assumptionsSet[lit.var()] = true;
+                assumptionsSet[lit.var()] = lit.sign() ? l_False : l_True;
             }
         } else {
             if (value(lit) == l_Undef) {
@@ -3075,12 +3099,10 @@ void Searcher::unfill_assumptions_set_from(const vector<AssumptionPair>& unfill_
     for(const AssumptionPair lit_pair: unfill_from) {
         const Lit lit = lit_pair.lit_inter;
         if (lit.var() < assumptionsSet.size()) {
-            #ifdef SLOW_DEBUG
-            if (!assumptionsSet[lit.var()]) {
+            if (assumptionsSet[lit.var()] == l_Undef) {
                 cout << "ERROR: var " << lit.var() + 1 << " is in assumptions but not in assumptionsSet" << endl;
             }
-            #endif
-            assert(assumptionsSet[lit.var()]);
+            assert(assumptionsSet[lit.var()] != l_Undef);
         }
     }
 
@@ -3088,14 +3110,14 @@ void Searcher::unfill_assumptions_set_from(const vector<AssumptionPair>& unfill_
     for(const AssumptionPair lit_pair: unfill_from) {
         const Lit lit = lit_pair.lit_inter;
         if (lit.var() < assumptionsSet.size()) {
-            assumptionsSet[lit.var()] = false;
+            assumptionsSet[lit.var()] = l_Undef;
         }
     }
 
     end:;
     #ifdef SLOW_DEBUG
     for(auto x: assumptionsSet) {
-        assert(!x);
+        assert(x == l_Undef);
     }
     #endif
 }
@@ -3320,7 +3342,9 @@ void Searcher::cancelUntil(uint32_t level)
     if (decisionLevel() > level) {
         #ifdef USE_GAUSS
         for (EGaussian* gauss: gmatrixes)
-            gauss->canceling(trail_lim[level]);
+            if (gauss) {
+                gauss->canceling(trail_lim[level]);
+            }
         #endif //USE_GAUSS
 
         //Go through in reverse order, unassign & insert then

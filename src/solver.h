@@ -70,7 +70,8 @@ class InTree;
 
 struct SolveStats
 {
-    uint64_t numSimplify = 0;
+    uint32_t num_simplify = 0;
+    uint32_t num_simplify_this_solve_call = 0;
     uint32_t num_solve_calls = 0;
 };
 
@@ -262,6 +263,8 @@ class Solver : public Searcher
         //Helper
         void renumber_xors_to_outside(const vector<Xor>& xors, vector<Xor>& xors_ret);
         void testing_set_solver_not_fresh();
+        void check_assigns_for_assumptions() const;
+        bool check_assumptions_contradict_foced_assignement() const;
 
     private:
         friend class Prober;
@@ -322,7 +325,7 @@ class Solver : public Searcher
         void print_full_restart_stat(const double cpu_time, const double cpu_time_total) const;
 
         lbool simplify_problem(const bool startup);
-        bool execute_inprocess_strategy(const bool startup, const string& strategy);
+        lbool execute_inprocess_strategy(const bool startup, const string& strategy);
         SolveStats solveStats;
         void check_minimization_effectiveness(lbool status);
         void check_recursive_minimization_effectiveness(const lbool status);

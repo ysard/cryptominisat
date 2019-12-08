@@ -100,7 +100,7 @@ void CompHandler::createRenumbering(const vector<uint32_t>& vars)
 bool CompHandler::assumpsInsideComponent(const vector<uint32_t>& vars)
 {
     for(uint32_t var: vars) {
-        if (solver->var_inside_assumptions(var)) {
+        if (solver->var_inside_assumptions(var) != l_Undef) {
             return true;
         }
     }
@@ -246,7 +246,7 @@ bool CompHandler::solve_component(
     , const vector<uint32_t>& vars_orig
     , const size_t num_comps
 ) {
-    assert(!solver->drat->enabled());
+    assert(! (solver->drat->enabled() || solver->conf.simulate_drat) );
     vector<uint32_t> vars(vars_orig);
     components_solved++;
 

@@ -41,6 +41,26 @@ void SolutionExtender::extend()
         cout << "c Exteding solution -- SolutionExtender::extend()" << endl;
     }
 
+    #ifdef SLOW_DEBUG
+    for(uint32_t i = 0; i < solver->varData.size(); i++) {
+        uint32_t v_inter = solver->map_outer_to_inter(i);
+        if (
+            //decomposed's solution has beed added already, it SHOULD be set
+            //but everything else is NOT OK
+            (solver->varData[v_inter].removed != Removed::none
+                && solver->varData[v_inter].removed != Removed::decomposed
+            )
+            && solver->model[i] != l_Undef
+        ) {
+            cout << "ERROR: variable " << i + 1
+            << " set even though it's removed: "
+            << removed_type_to_string(solver->varData[v_inter].removed) << endl;
+            //solver->model[i] = l_Undef;
+            assert(solver->model[i] == l_Undef);
+        }
+    }
+    #endif
+
     //Extend variables already set
     solver->varReplacer->extend_model_already_set();
 

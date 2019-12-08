@@ -88,7 +88,7 @@ inline std::string getNameOfRestartType(Restart rest_type)
 
         default:
             assert(false && "Unknown clause cleaning type?");
-    };
+    }
 }
 
 inline std::string getNameOfCleanType(ClauseClean clauseCleaningType)
@@ -103,7 +103,7 @@ inline std::string getNameOfCleanType(ClauseClean clauseCleaningType)
         default:
             assert(false && "Unknown clause cleaning type?");
             std::exit(-1);
-    };
+    }
 }
 
 class GaussConf
@@ -276,6 +276,7 @@ class DLL_PUBLIC SolverConf
         int      bva_also_twolit_diff;
         long     bva_extra_lit_and_red_start;
         long long bva_time_limitM;
+        uint32_t  bva_every_n;
 
         //Probing
         int      doProbe;
@@ -317,6 +318,7 @@ class DLL_PUBLIC SolverConf
         uint64_t num_conflicts_of_search;
         double   num_conflicts_of_search_inc;
         double   num_conflicts_of_search_inc_max;
+        uint32_t max_num_simplify_per_solve_call;
         string   simplify_schedule_startup;
         string   simplify_schedule_nonstartup;
         string   simplify_schedule_preproc;
@@ -330,6 +332,14 @@ class DLL_PUBLIC SolverConf
         double maxOccurRedLitLinkedM;
         double   subsume_gothrough_multip;
 
+        //Walksat
+        int doSLS;
+        uint32_t sls_every_n;
+        uint32_t yalsat_max_mems;
+        uint32_t sls_memoutMB;
+        uint32_t walksat_max_runs;
+        string   which_sls;
+
         //Distillation
         int      do_distill_clauses;
         unsigned long long distill_long_cls_time_limitM;
@@ -338,8 +348,10 @@ class DLL_PUBLIC SolverConf
 
         //Memory savings
         int       doRenumberVars;
+        int       must_renumber; ///< if set, all "renumber" is treated as a "must-renumber"
         int       doSaveMem;
         uint64_t  full_watch_consolidate_every_n_confl;
+        int       static_mem_consolidate_order;
 
         //Component handling
         int       doCompHandler;

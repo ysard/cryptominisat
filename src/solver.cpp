@@ -65,6 +65,7 @@ THE SOFTWARE.
 #include "sqlstats.h"
 #include "drat.h"
 #include "xorfinder.h"
+#include "sls.h"
 
 using namespace CMSat;
 using std::cout;
@@ -1034,7 +1035,7 @@ void Solver::new_var(const bool bva, const uint32_t orig_outer)
     }
 
     if (bva) {
-        assumptionsSet.push_back(false);
+        assumptionsSet.push_back(l_Undef);
     }
 
     //Too expensive
@@ -1057,7 +1058,9 @@ void Solver::save_on_var_memory(const uint32_t newNumVars)
         compHandler->save_on_var_memory();
     }
     datasync->save_on_var_memory();
-    assumptionsSet.resize(nVars(), false);
+
+    assert(assumptionsSet.size() >= nVars());
+    assumptionsSet.resize(nVars());
     assumptionsSet.shrink_to_fit();
 
     const double time_used = cpuTime() - myTime;
@@ -1083,7 +1086,7 @@ void Solver::set_assumptions()
     back_number_from_outside_to_outer(outside_assumptions);
     vector<Lit> inter_assumptions = back_number_from_outside_to_outer_tmp;
     addClauseHelper(inter_assumptions);
-    assumptionsSet.resize(nVars(), false);
+    assumptionsSet.resize(nVars(), l_Undef);
     if (outside_assumptions.empty()) {
         return;
     }
@@ -1115,7 +1118,8 @@ void Solver::check_model_for_assumptions() const
         if (model_value(outside_lit) != l_True) {
             std::cerr
             << "ERROR, lit " << outside_lit
-            << " was in the assumptions, but it was set to its opposite value!"
+            << " was in the assumptions, but it was set to: "
+            << model_value(outside_lit)
             << endl;
         }
         assert(model_value(outside_lit) == l_True);
@@ -1351,6 +1355,11 @@ void Solver::check_config_parameters() const
     }
     #endif
 
+    if (conf.blocking_restart_trail_hist_length == 0) {
+        std::cerr << "ERROR: Blocking restart length must be at least 0" << endl;
+        exit(-1);
+    }
+
     check_xor_cut_config_sanity();
 }
 
@@ -1369,6 +1378,7 @@ lbool Solver::simplify_problem_outside()
     decisions_reaching_model_valid = false;
 
     conf.global_timeout_multiplier = conf.orig_global_timeout_multiplier;
+    solveStats.num_simplify_this_solve_call = 0;
 
     if (!ok) {
         return l_False;
@@ -1380,7 +1390,10 @@ lbool Solver::simplify_problem_outside()
 
     lbool status = l_Undef;
     if (nVars() > 0 && conf.do_simplify_problem) {
+        bool backup = conf.doSLS;
+        conf.doSLS = false;
         status = simplify_problem(false);
+        conf.doSLS = backup;
     }
     unfill_assumptions_set_from(assumptions);
     assumptions.clear();
@@ -1416,6 +1429,7 @@ lbool Solver::solve_with_assumptions(
     var_decay_vsids = conf.var_decay_vsids_start;
     step_size = conf.orig_step_size;
     conf.global_timeout_multiplier = conf.orig_global_timeout_multiplier;
+    solveStats.num_simplify_this_solve_call = 0;
     params.rest_type = conf.restartType;
     if (params.rest_type == Restart::glue_geom) {
         params.rest_type = Restart::geom;
@@ -1465,7 +1479,7 @@ lbool Solver::solve_with_assumptions(
         && nVars() > 0
         && conf.do_simplify_problem
         && conf.simplify_at_startup
-        && (solveStats.numSimplify == 0 || conf.simplify_at_every_startup)
+        && (solveStats.num_simplify == 0 || conf.simplify_at_every_startup)
     ) {
         status = simplify_problem(!conf.full_simplify_at_startup);
     }
@@ -1519,7 +1533,7 @@ void Solver::check_reconfigure()
         && longIrredCls.size() > 1
         && (binTri.irredBins + binTri.redBins) > 1
     ) {
-        if (solveStats.numSimplify == conf.reconfigure_at &&
+        if (solveStats.num_simplify == conf.reconfigure_at &&
             !already_reconfigured
         ) {
             check_calc_features();
@@ -1791,7 +1805,7 @@ void Solver::handle_found_solution(const lbool status, const bool only_sampling_
 
         for(const Lit lit: conflict) {
             if (value(lit) == l_Undef) {
-                assert(var_inside_assumptions(lit.var()));
+                assert(var_inside_assumptions(lit.var()) != l_Undef);
             }
         }
         update_assump_conflict_to_orig_outside(conflict);
@@ -1803,7 +1817,7 @@ void Solver::handle_found_solution(const lbool status, const bool only_sampling_
     #endif
 }
 
-bool Solver::execute_inprocess_strategy(
+lbool Solver::execute_inprocess_strategy(
     const bool startup
     , const string& strategy
 ) {
@@ -1819,7 +1833,7 @@ bool Solver::execute_inprocess_strategy(
             || nVars() == 0
             || !okay()
         ) {
-            return ok;
+            break;
         }
         assert(watches.get_smudged_list().empty());
         assert(prop_at_head());
@@ -1850,7 +1864,7 @@ bool Solver::execute_inprocess_strategy(
                 || nVars() == 0
                 || !ok
             ) {
-                return ok;
+                break;
             }
             #ifdef SLOW_DEBUG
             solver->check_stats();
@@ -1873,9 +1887,9 @@ bool Solver::execute_inprocess_strategy(
                 && conf.doCompHandler
                 && conf.sampling_vars == NULL
                 && get_num_free_vars() < conf.compVarLimit*solver->conf.var_and_mem_out_mult
-                && solveStats.numSimplify >= conf.handlerFromSimpNum
+                && solveStats.num_simplify >= conf.handlerFromSimpNum
                 //Only every 2nd, since it can be costly to find parts
-                && solveStats.numSimplify % 2 == 0 //TODO
+                && solveStats.num_simplify % 2 == 0 //TODO
             ) {
                 compHandler->handle();
             }
@@ -1896,6 +1910,17 @@ bool Solver::execute_inprocess_strategy(
             //subsume BIN with BIN
             if (conf.doStrSubImplicit) {
                 subsumeImplicit->subsume_implicit();
+            }
+        } else if (token == "sls") {
+            assert(conf.sls_every_n > 0);
+            if (conf.doSLS
+                && solveStats.num_simplify % conf.sls_every_n == (conf.sls_every_n-1)
+            ) {
+                SLS sls(this);
+                const lbool ret = sls.run();
+                if (ret == l_True) {
+                    return l_True;
+                }
             }
         } else if (token == "intree-probe") {
             if (conf.doIntreeProbe) {
@@ -1950,12 +1975,12 @@ bool Solver::execute_inprocess_strategy(
                     bool setSomething = true;
                     while(setSomething) {
                         if (!implCache.clean(this, &setSomething))
-                            return false;
+                            return l_False;
                     }
                 }
 
-                if (!renumber_variables(token == "must-renumber")) {
-                    return false;
+                if (!renumber_variables(token == "must-renumber" || conf.must_renumber)) {
+                    return l_False;
                 }
             }
         } else if (token == "") {
@@ -1973,12 +1998,12 @@ bool Solver::execute_inprocess_strategy(
         #endif
 
         if (!ok) {
-            return ok;
+            return l_False;
         }
         check_wrong_attach();
     }
 
-    return ok;
+    return ok ? l_Undef : l_False;
 }
 
 /**
@@ -1999,6 +2024,10 @@ lbool Solver::simplify_problem(const bool startup)
     assert(solver->no_marked_clauses());
     #endif
 
+    if (solveStats.num_simplify_this_solve_call >= conf.max_num_simplify_per_solve_call) {
+        return l_Undef;
+    }
+
     clear_order_heap();
     #ifdef USE_GAUSS
     clearEnGaussMatrixes();
@@ -2010,10 +2039,11 @@ lbool Solver::simplify_problem(const bool startup)
         << endl;
     }
 
+    lbool ret;
     if (startup) {
-        execute_inprocess_strategy(startup, conf.simplify_schedule_startup);
+        ret = execute_inprocess_strategy(startup, conf.simplify_schedule_startup);
     } else {
-        execute_inprocess_strategy(startup, conf.simplify_schedule_nonstartup);
+        ret = execute_inprocess_strategy(startup, conf.simplify_schedule_nonstartup);
     }
 
     //Free unused watch memory
@@ -2031,11 +2061,13 @@ lbool Solver::simplify_problem(const bool startup)
     if (conf.verbosity)
         cout << "c global_timeout_multiplier: " << conf. global_timeout_multiplier << endl;
 
-    solveStats.numSimplify++;
+    solveStats.num_simplify++;
+    solveStats.num_simplify_this_solve_call++;
 
-    if (!ok) {
+    assert(!(ok == false && ret != l_False));
+    if (!ok || ret == l_False) {
         return l_False;
-    } else {
+    } else if (ret == l_Undef) {
         check_stats();
         check_implicit_propagated();
         rebuildOrderHeap();
@@ -2045,7 +2077,12 @@ lbool Solver::simplify_problem(const bool startup)
         #endif
         check_wrong_attach();
 
-        return l_Undef;
+        return ret;
+    } else {
+        assert(ret == l_True);
+        rebuildOrderHeap();
+        finish_up_solve(ret);
+        return ret;
     }
 }
 
@@ -3088,7 +3125,7 @@ void Solver::update_assumptions_after_varreplace()
     //Update assumptions
     for(AssumptionPair& lit_pair: assumptions) {
         if (assumptionsSet.size() > lit_pair.lit_inter.var()) {
-            assumptionsSet[lit_pair.lit_inter.var()] = false;
+            assumptionsSet[lit_pair.lit_inter.var()] = l_Undef;
         } else {
             assert(value(lit_pair.lit_inter) != l_Undef
                 && "There can be NO other reason -- vars in assumptions cannot be elimed or decomposed");
@@ -3098,12 +3135,12 @@ void Solver::update_assumptions_after_varreplace()
         lit_pair.lit_inter = varReplacer->get_lit_replaced_with(lit_pair.lit_inter);
         //remove old from set
         if (orig != lit_pair.lit_inter && assumptionsSet.size() > orig.var()) {
-                assumptionsSet[orig.var()] = false;
+            assumptionsSet[orig.var()] = l_Undef;
         }
 
         //add new to set
         if (assumptionsSet.size() > lit_pair.lit_inter.var()) {
-            assumptionsSet[lit_pair.lit_inter.var()] = true;
+            assumptionsSet[lit_pair.lit_inter.var()] = lit_pair.lit_inter.sign() ? l_False: l_True;
         }
     }
 }
@@ -3749,7 +3786,7 @@ void Solver::undef_fill_potentials()
 
         assert(varData[v].removed == Removed::none);
         assert(assumptionsSet.size() > v);
-        if (model_value(v) != l_Undef && assumptionsSet[v] == false) {
+        if (model_value(v) != l_Undef && assumptionsSet[v] == l_Undef) {
             assert(undef->can_be_unset[v] == 0);
             undef->can_be_unset[v] ++;
             if (conf.sampling_vars == NULL) {
@@ -4001,13 +4038,7 @@ void Solver::renumber_xors_to_outside(const vector<Xor>& xors, vector<Xor>& xors
 bool Solver::init_all_matrixes()
 {
     assert(ok);
-
-    vector<EGaussian*>::iterator i = gmatrixes.begin();
-    vector<EGaussian*>::iterator j = i;
-    vector<EGaussian*>::iterator gend = gmatrixes.end();
-    for (; i != gend; i++) {
-        EGaussian* g = *i;
-
+    for (EGaussian*& g :gmatrixes) {
         bool created = false;
         // initial arrary. return true is fine , return false means solver already false;
         if (!g->full_init(created)) {
@@ -4016,17 +4047,14 @@ bool Solver::init_all_matrixes()
         if (!ok) {
             break;
         }
-        if (created) {
-            *j++=*i;
-        } else {
+        if (!created) {
             delete g;
+            if (conf.verbosity > 5) {
+                cout << "DELETED matrix" << endl;
+            }
+            g = NULL;
         }
     }
-    while(i != gend) {
-        *j++ = *i++;
-    }
-    gmatrixes.resize(solver->gmatrixes.size()-(i-j));
-    gqueuedata.resize(gmatrixes.size());
     for(auto& gqd: gqueuedata) {
         gqd.reset_stats();
     }
@@ -4149,4 +4177,28 @@ void Solver::learnt_clausee_query_map_without_bva(vector<Lit>& cl)
     for(auto& l: cl) {
         l = Lit(learnt_clause_query_outer_to_without_bva_map[l.var()], l.sign());
     }
+}
+
+
+void Solver::check_assigns_for_assumptions() const
+{
+    for (auto& ass: solver->assumptions) {
+        if (value(ass.lit_inter) != l_True) {
+            cout << "ERROR: Internal assumption " << ass.lit_inter
+            << " is not set to l_True, it's set to: " << value(ass.lit_inter)
+            << endl;
+            assert(lit_inside_assumptions(ass.lit_inter) == l_True);
+        }
+        assert(value(ass.lit_inter) == l_True);
+    }
+}
+
+bool Solver::check_assumptions_contradict_foced_assignement() const
+{
+    for (auto& ass: solver->assumptions) {
+        if (value(ass.lit_inter) == l_False) {
+            return true;
+        }
+    }
+    return false;
 }

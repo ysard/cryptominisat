@@ -84,6 +84,7 @@ endforeach()
 ## See PYTHON_STRIPPED_SOURCES
 file(GLOB SOURCES
   "${CMAKE_CURRENT_BINARY_DIR}/src/*.cpp"
+  "${CMAKE_CURRENT_BINARY_DIR}/src/*.c"
 )
 # Remove the current path (not needed for setup.py) for each file
 set(PYTHON_STRIPPED_SOURCES)

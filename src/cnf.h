@@ -75,7 +75,7 @@ public:
         if (_conf != NULL) {
             conf = *_conf;
         }
-        drat = new Drat();
+        drat = new Drat;
         assert(_must_interrupt_inter != NULL);
         must_interrupt_inter = _must_interrupt_inter;
 
@@ -103,11 +103,14 @@ public:
     Stamp stamp;
     ImplCache implCache;
     uint32_t minNumVars = 0;
-    Drat* drat;
     uint32_t sumConflicts = 0;
     uint32_t latest_feature_calc = 0;
     uint64_t last_feature_calc_confl = 0;
     unsigned  cur_max_temp_red_lev2_cls = conf.max_temp_lev2_learnt_clauses;
+
+    //drat
+    Drat* drat;
+    void add_drat(std::ostream* os, bool add_ID);
 
     //Clauses
     vector<ClOffset> longIrredCls;
@@ -293,6 +296,8 @@ protected:
 
     void save_state(SimpleOutFile& f) const;
     void load_state(SimpleInFile& f);
+    vector<uint32_t> outerToInterMain;
+    vector<uint32_t> interToOuterMain;
 
 private:
     std::atomic<bool> *must_interrupt_inter; ///<Interrupt cleanly ASAP if true
@@ -300,8 +305,6 @@ private:
     void enlarge_nonminimial_datastructs(size_t n = 1);
     void swapVars(const uint32_t which, const int off_by = 0);
 
-    vector<uint32_t> outerToInterMain;
-    vector<uint32_t> interToOuterMain;
     size_t num_bva_vars = 0;
     vector<uint32_t> outer_to_with_bva_map;
 };
@@ -616,7 +619,6 @@ void CNF::clean_xor_vars_no_prop(T& ps, bool& rhs)
     }
     ps.resize(ps.size() - (i - j));
 }
-
 
 }
 

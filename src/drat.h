@@ -24,7 +24,11 @@ THE SOFTWARE.
 #define __DRAT_H__
 
 #include "clause.h"
+#include <vector>
 #include <iostream>
+
+using std::vector;
+//#define DEBUG_DRAT
 
 namespace CMSat {
 
@@ -89,9 +93,7 @@ struct Drat
     {
     }
 
-    virtual void flush()
-    {
-    }
+    virtual void flush();
 
     int buf_len;
     unsigned char* drup_buf = 0;
@@ -101,7 +103,8 @@ struct Drat
 template<bool add_ID>
 struct DratFile: public Drat
 {
-    DratFile()
+    DratFile(vector<uint32_t>& _interToOuterMain) :
+        interToOuterMain(_interToOuterMain)
     {
         drup_buf = new unsigned char[2 * 1024 * 1024];
         buf_ptr = drup_buf;
@@ -134,7 +137,12 @@ struct DratFile: public Drat
 
     void byteDRUPa(const Lit l)
     {
-        unsigned int u = 2 * (l.var() + 1) + l.sign();
+        uint32_t v = l.var();
+        v = interToOuterMain[v];
+#ifdef DEBUG_DRAT
+        cout << Lit(v, l.sign()) << " ";
+#endif
+        unsigned int u = 2 * (v + 1) + l.sign();
         do {
             *buf_ptr++ = (u & 0x7f) | 0x80;
             buf_len++;
@@ -153,9 +161,14 @@ struct DratFile: public Drat
         }
     }
 
-    void byteDRUPd(const Lit l)
+    void byteDRUPd(Lit l)
     {
-        unsigned int u = 2 * (l.var() + 1) + l.sign();
+        uint32_t v = l.var();
+        v = interToOuterMain[v];
+#ifdef DEBUG_DRAT
+        cout << Lit(v, l.sign()) << " ";
+#endif
+        unsigned int u = 2 * (v + 1) + l.sign();
         do {
             *del_ptr++ = (u & 0x7f) | 0x80;
             del_len++;
@@ -225,11 +238,20 @@ struct DratFile: public Drat
     Drat& operator<<(const Clause& cl) override
     {
         if (must_delete_next) {
+#ifdef DEBUG_DRAT
+            cout << "d ";
+#endif
             for(const Lit l: cl)
                 byteDRUPd(l);
         } else {
+#ifdef DEBUG_DRAT
+            cout << "a ";
+#endif
             for(const Lit l: cl)
                 byteDRUPa(l);
+#ifdef DEBUG_DRAT
+            cout << endl;
+#endif
 
             #ifdef STATS_NEEDED
             id_set = true;
@@ -251,11 +273,23 @@ struct DratFile: public Drat
     Drat& operator<<(const vector<Lit>& cl) override
     {
         if (must_delete_next) {
+#ifdef DEBUG_DRAT
+            cout << "d ";
+#endif
             for(const Lit l: cl)
                 byteDRUPd(l);
+#ifdef DEBUG_DRAT
+            cout << endl;
+#endif
         } else {
+#ifdef DEBUG_DRAT
+            cout << "d ";
+#endif
             for(const Lit l: cl)
                 byteDRUPa(l);
+#ifdef DEBUG_DRAT
+            cout << endl;
+#endif
         }
 
         return *this;
@@ -339,6 +373,7 @@ struct DratFile: public Drat
     }
 
     std::ostream* drup_file = NULL;
+    vector<uint32_t>& interToOuterMain;
     #ifdef STATS_NEEDED
     int64_t ID = 0;
     int64_t sumConflicts = std::numeric_limits<int64_t>::max();

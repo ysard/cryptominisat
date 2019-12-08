@@ -1,6 +1,4 @@
 /******************************************
-Copyright (c) 2018, Mate Soos <soos.mate@gmail.com>
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -20,12 +18,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ***********************************************/
 
-#include "walksat.h"
-using namespace CMSat;
+#include "drat.h"
 
-int main()
-{
-    WalkSAT walk;
-    walk.main();
-    return 0;
+namespace CMSat {
+    void Drat::flush() {}
 }

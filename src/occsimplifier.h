@@ -258,6 +258,8 @@ public:
     const SubsumeStrengthen* get_sub_str() const;
     void check_elimed_vars_are_unassigned() const;
     bool getAnythingHasBeenBlocked() const;
+
+    /// Used ONLY for XOR, changes occur setup
     void sort_occurs_and_set_abst();
     void save_state(SimpleOutFile& f);
     void load_state(SimpleInFile& f);
@@ -318,6 +320,7 @@ private:
     int64_t  varelim_num_limit;
     int64_t  varelim_sub_str_limit;
     int64_t  ternary_res_time_limit;
+    int64_t  ternary_res_cls_limit;
     int64_t* limit_to_decrease;
 
     //Memory limits

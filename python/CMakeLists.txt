@@ -143,13 +143,8 @@ add_custom_target(pycryptosat_pypi_dist_package
 # This binary package (wheel) can be uploaded on PyPI.
 # It avoids users having to compile the source package.
 #
-# PS: Currently (oct 2017), C++14 can not be compiled in the environment recommended for the builds
-# of the wheels (CentOS 5.11 https://www.python.org/dev/peps/pep-0513/#id40);
-# consequently the binaries compiled outside this environment can not have the tag manylinux1
-# allowing them to be uploaded on pypi. The trick is to compile on a more recent distribution
-# (but almost outdated like Debian Jessie for example) in order to link the library to a version
-# of the lib C compatible with the majority of the recent distributions (by backward compatibility);
-# then simply replace the tag "linux_x86_64" with "manylinux1_x86_64" in the name of the generated whl file.
+# PS: Currently (nov 2019), C++14 can be compiled starting the manylinux2010 environment (CentOS 6).
+# This project and its wheels are eligible for the tag manylinux2010.
 add_custom_target(pycryptosat_pypi_bdist_wheel_package
                   COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} bdist_wheel
                   COMMENT "Build pycryptosat for pypi binary package...")

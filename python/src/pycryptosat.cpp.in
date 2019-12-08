@@ -668,28 +668,6 @@ static PyObject* get_raw_solution(SATSolver *cmsat) {
     return tuple;
 }
 
-PyDoc_STRVAR(nb_vars_doc,
-"Return the number of literals in the solver.\n\
-\n\
-:rtype: <int>"
-);
-
-static PyObject* nb_vars(Solver *self)
-{
-    return PYLONG_FROM_LONG(self->cmsat->nVars());
-}
-
-PyDoc_STRVAR(nb_clauses_doc,
-"Return the number of clauses in the solver.\n\
-\n\
-:rtype: <int>"
-);
-
-static PyObject* nb_clauses(Solver *self)
-{
-    return PYLONG_FROM_LONG(self->cmsat->nClauses());
-}
-
 static int parse_assumption_lits(PyObject* assumptions, SATSolver* cmsat, std::vector<Lit>& assumption_lits)
 {
     PyObject *iterator = PyObject_GetIter(assumptions);
@@ -1206,6 +1184,28 @@ static PyMethodDef Solver_methods[] = {
 };
 
 /*************************** Getters/Setters definitions *************************/
+
+PyDoc_STRVAR(nb_vars_doc,
+"Return the number of literals in the solver.\n\
+\n\
+:rtype: <int>"
+);
+
+static PyObject* nb_vars(Solver *self)
+{
+    return PYLONG_FROM_LONG(self->cmsat->nVars());
+}
+
+PyDoc_STRVAR(nb_clauses_doc,
+"Return the number of clauses in the solver.\n\
+\n\
+:rtype: <int>"
+);
+
+static PyObject* nb_clauses(Solver *self)
+{
+    return PYLONG_FROM_LONG(self->cmsat->nClauses());
+}
 
 PyDoc_STRVAR(verbosity_doc,
 "Get/set the verbosity of the solver at any time.\n\

@@ -803,7 +803,7 @@ static PyObject* solve(Solver *self, PyObject *args, PyObject *kwds)
     self->cmsat->set_max_time(time_limit);
     self->cmsat->set_max_confl(confl_limit);
 
-    PyObject *result = PyTuple_New((Py_ssize_t) 2);
+    PyObject *result = PyTuple_New(2);
     if (result == NULL) {
         PyErr_SetString(PyExc_SystemError, "failed to create a tuple");
         return NULL;
@@ -1113,10 +1113,10 @@ static PyObject* get_next_small_clause(Solver *self)
         Py_RETURN_NONE;
     }
 
-    PyObject* list = PyList_New(lits.size());
+    PyObject* list = PyList_New((Py_ssize_t) lits.size());
     for(size_t i = 0; i < lits.size(); i++) {
         Lit l = lits[i];
-        long ll = l.var()+1;
+        long ll = l.var() + 1;
         if (l.sign()) {
             ll *= -1;
         }

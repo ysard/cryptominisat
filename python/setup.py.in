@@ -73,6 +73,7 @@ EXTRA_ARGS = {
                                "-Wno-unused-but-set-variable",
                                "-fvisibility=hidden"],
         "extra_link_args": ["-flto", "-O3", "-Wl,--as-needed"],
+        "define_macros": [("YALSAT_FPU", None),],
     },
     "unix_darwin": {
         # linking to Clang"s C++ library libc++, rather than GCC"s libstdc++

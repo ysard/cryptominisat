@@ -121,24 +121,30 @@ static void setup_solver(Solver *self, PyObject *args, PyObject *kwds)
 {
     static char const* kwlist[] = {"verbose", "time_limit", "confl_limit", "threads", NULL};
 
-    int num_threads = 1;
     self->cmsat = NULL;
-    self->verbose = 0;
-    self->time_limit = std::numeric_limits<double>::max();
-    self->confl_limit = std::numeric_limits<long>::max();
+    int num_threads = 1;
+    int verbose = 0;
+    double time_limit = std::numeric_limits<double>::max();
+    long confl_limit = std::numeric_limits<long>::max();
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|idli", const_cast<char**>(kwlist), &self->verbose, &self->time_limit, &self->confl_limit, &num_threads)) {
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "|idli", const_cast<char**>(kwlist),
+            &verbose,
+            &time_limit,
+            &confl_limit,
+            &num_threads)
+       ) {
         return;
     }
-    if (self->verbose < 0) {
+    if (verbose < 0) {
         PyErr_SetString(PyExc_ValueError, "verbosity must be at least 0");
         return;
     }
-    if (self->time_limit < 0) {
+    if (time_limit < 0) {
         PyErr_SetString(PyExc_ValueError, "time_limit must be at least 0");
         return;
     }
-    if (self->confl_limit < 0) {
+    if (confl_limit < 0) {
         PyErr_SetString(PyExc_ValueError, "conflict limit must be at least 0");
         return;
     }
@@ -147,10 +153,16 @@ static void setup_solver(Solver *self, PyObject *args, PyObject *kwds)
         return;
     }
 
+    // Init Solver attributes
+    self->verbose = verbose;
+    self->time_limit = time_limit;
+    self->confl_limit = confl_limit;
+
+    // Init SATSolver
     self->cmsat = new SATSolver;
-    self->cmsat->set_verbosity(self->verbose);
-    self->cmsat->set_max_time(self->time_limit);
-    self->cmsat->set_max_confl(self->confl_limit);
+    self->cmsat->set_verbosity(verbose);
+    self->cmsat->set_max_time(time_limit);
+    self->cmsat->set_max_confl(confl_limit);
     self->cmsat->set_num_threads(num_threads);
 
     return;
@@ -769,7 +781,13 @@ static PyObject* solve(Solver *self, PyObject *args, PyObject *kwds)
     long confl_limit = self->confl_limit;
 
     static char const* kwlist[] = {"assumptions", "verbose", "time_limit", "confl_limit", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|Oidl", const_cast<char**>(kwlist), &assumptions, &verbose, &time_limit, &confl_limit)) {
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "|Oidl", const_cast<char**>(kwlist),
+            &assumptions,
+            &verbose,
+            &time_limit,
+            &confl_limit)
+       ) {
         return NULL;
     }
     if (verbose < 0) {
@@ -1062,8 +1080,8 @@ PyDoc_STRVAR(start_getting_small_clauses_doc,
 \n\
 .. warning:: Experimental\n\
 \n\
-.. seealso:: Get learnt clauses with `get_next_small_clause()`;\n\
-    You can call `end_getting_small_clauses()` at any time.\n\
+.. seealso:: Get learnt clauses with :meth:`get_next_small_clause`;\n\
+    You can call :meth:`end_getting_small_clauses` at any time.\n\
 \n\
 :Example:\n\
 \n\
@@ -1097,8 +1115,8 @@ PyDoc_STRVAR(get_next_small_clause_doc,
 \n\
 .. warning:: Experimental\n\
 \n\
-.. seealso:: Start getting learnt clauses with `start_getting_small_clauses()`;\n\
-    You can call `end_getting_small_clauses()` at any time.\n\
+.. seealso:: Start getting learnt clauses with :meth:`start_getting_small_clauses`;\n\
+    You can call :meth:`end_getting_small_clauses` at any time.\n\
 \n\
 :return: A clause with the specified size or less.\n\
 :rtype: <list>"
@@ -1129,8 +1147,8 @@ PyDoc_STRVAR(end_getting_small_clauses_doc,
 \n\
 .. warning:: Experimental\n\
 \n\
-.. seealso:: Start getting learnt clauses with `start_getting_small_clauses()`;\n\
-    Get learnt clauses with `get_next_small_clause()`."
+.. seealso:: Start getting learnt clauses with :meth:`start_getting_small_clauses`;\n\
+    Get learnt clauses with :meth:`get_next_small_clause`."
 );
 static PyObject* end_getting_small_clauses(Solver *self)
 {
@@ -1189,7 +1207,140 @@ static PyMethodDef Solver_methods[] = {
 
 /*************************** Getters/Setters definitions *************************/
 
+PyDoc_STRVAR(verbosity_doc,
+"Get/set the verbosity of the solver at any time.\n\
+\n\
+.. note:: Value must be at least 0.\n\
+\n\
+:type: <int>"
+);
+
+static PyObject* Solver_get_verbosity(Solver *self, void *closure)
+{
+    PyObject *py_value = NULL;
+
+    py_value = PYLONG_FROM_LONG(self->verbose);
+
+    if (py_value == NULL)
+        return NULL;
+
+    return py_value;
+}
+
+static int Solver_set_verbosity(Solver *self, PyObject *py_value, void *closure)
+{
+    int status = -1;
+
+    if (!py_value || !IS_INT(py_value)) {
+        PyErr_SetString(PyExc_TypeError, "verbosity: integer expected");
+        goto error;
+    }
+
+    long value;
+    value = PyLong_AsLong(py_value);
+    if (value < 0) {
+        PyErr_SetString(PyExc_ValueError, "verbosity must be at least 0");
+        goto error;
+    }
+
+    self->verbose = value;
+    self->cmsat->set_verbosity(value);
+    status = 0;
+error:
+    return status;
+}
+
+PyDoc_STRVAR(time_limit_doc,
+"Get/set the timeout of the solver at any time.\n\
+\n\
+.. note:: Value must be at least 0.\n\
+\n\
+:type: <float>"
+);
+
+static PyObject* Solver_get_max_time(Solver *self, void *closure)
+{
+    PyObject *py_value = NULL;
+
+    py_value = PyFloat_FromDouble(self->time_limit);
+
+    if (py_value == NULL)
+        return NULL;
+
+    return py_value;
+}
+
+static int Solver_set_max_time(Solver *self, PyObject *py_value, void *closure)
+{
+    int status = -1;
+
+    if (!py_value || (!IS_INT(py_value) && !PyFloat_Check(py_value))) {
+        PyErr_SetString(PyExc_TypeError, "time_limit: float or integer expected");
+        goto error;
+    }
+
+    double value;
+    value = PyFloat_AsDouble(py_value);
+    if (value < 0.0) {
+        PyErr_SetString(PyExc_ValueError, "time_limit must be at least 0");
+        goto error;
+    }
+
+    self->time_limit = value;
+    self->cmsat->set_max_time(value);
+    status = 0;
+error:
+    return status;
+}
+
+PyDoc_STRVAR(confl_limit_doc,
+"Get/set the conflict limit of the solver at any time.\n\
+\n\
+.. note:: Value must be at least 0.\n\
+\n\
+:type: <long>"
+);
+
+static PyObject* Solver_get_confl_limit(Solver *self, void *closure)
+{
+    PyObject *py_value = NULL;
+
+    py_value = PYLONG_FROM_LONG(self->confl_limit);
+
+    if (py_value == NULL)
+        return NULL;
+
+    return py_value;
+}
+
+static int Solver_set_confl_limit(Solver *self, PyObject *py_value, void *closure)
+{
+    int status = -1;
+
+    if (!py_value || !IS_INT(py_value)) {
+        PyErr_SetString(PyExc_TypeError, "conflict_limit: integer expected");
+        goto error;
+    }
+
+    long value;
+    value = PyLong_AsLong(py_value);
+    if (value < 0) {
+        PyErr_SetString(PyExc_ValueError, "conflict_limit must be at least 0");
+        goto error;
+    }
+
+    self->confl_limit = value;
+    self->cmsat->set_max_confl(value);
+    status = 0;
+error:
+    return status;
+}
+
+
 static PyGetSetDef Solver_getsetters[] = {
+    {const_cast<char*>("verbose"), (getter)Solver_get_verbosity, (setter)Solver_set_verbosity, verbosity_doc, NULL},
+    {const_cast<char*>("time_limit"), (getter)Solver_get_max_time, (setter)Solver_set_max_time, time_limit_doc, NULL},
+    {const_cast<char*>("confl_limit"), (getter)Solver_get_confl_limit, (setter)Solver_set_confl_limit, confl_limit_doc, NULL},
     {const_cast<char*>("nb_vars"), (getter)nb_vars, NULL, nb_vars_doc, NULL},
     {const_cast<char*>("nb_clauses"), (getter)nb_clauses, NULL, nb_clauses_doc, NULL},
     {NULL}  /* Sentinel */

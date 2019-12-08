@@ -657,8 +657,7 @@ static PyObject* get_raw_solution(SATSolver *cmsat) {
 }
 
 PyDoc_STRVAR(nb_vars_doc,
-"nb_vars()\n\
-Return the number of literals in the solver.\n\
+"Return the number of literals in the solver.\n\
 \n\
 :rtype: <int>"
 );
@@ -669,8 +668,7 @@ static PyObject* nb_vars(Solver *self)
 }
 
 PyDoc_STRVAR(nb_clauses_doc,
-"nb_clauses()\n\
-Return the number of clauses in the solver.\n\
+"Return the number of clauses in the solver.\n\
 \n\
 :rtype: <int>"
 );
@@ -1179,8 +1177,6 @@ static PyMethodDef Solver_methods[] = {
     {"add_clause",(PyCFunction) add_clause,  METH_VARARGS | METH_KEYWORDS, add_clause_doc},
     {"add_clauses", (PyCFunction) add_clauses,  METH_VARARGS | METH_KEYWORDS, add_clauses_doc},
     {"add_xor_clause",(PyCFunction) add_xor_clause,  METH_VARARGS | METH_KEYWORDS, "adds an XOR clause to the system"},
-    {"nb_vars", (PyCFunction) nb_vars, METH_NOARGS, nb_vars_doc},
-    {"nb_clauses", (PyCFunction) nb_clauses, METH_NOARGS, nb_clauses_doc},
     {"msolve_selected", (PyCFunction) msolve_selected, METH_VARARGS | METH_KEYWORDS, msolve_selected_doc},
     {"is_satisfiable", (PyCFunction) is_satisfiable, METH_NOARGS, is_satisfiable_doc},
     {"get_conflict", (PyCFunction) get_conflict, METH_NOARGS, get_conflict_doc},
@@ -1189,6 +1185,14 @@ static PyMethodDef Solver_methods[] = {
     {"get_next_small_clause", (PyCFunction) get_next_small_clause, METH_NOARGS, get_next_small_clause_doc},
     {"end_getting_small_clauses", (PyCFunction) end_getting_small_clauses, METH_NOARGS, end_getting_small_clauses_doc},
     {NULL,        NULL}  /* sentinel - marks the end of this structure */
+};
+
+/*************************** Getters/Setters definitions *************************/
+
+static PyGetSetDef Solver_getsetters[] = {
+    {const_cast<char*>("nb_vars"), (getter)nb_vars, NULL, nb_vars_doc, NULL},
+    {const_cast<char*>("nb_clauses"), (getter)nb_clauses, NULL, nb_clauses_doc, NULL},
+    {NULL}  /* Sentinel */
 };
 
 static void
@@ -1242,7 +1246,7 @@ static PyTypeObject pycryptosat_SolverType = {
     0,                          /* tp_iternext */
     Solver_methods,             /* tp_methods */
     0,                          /* tp_members */
-    0,                          /* tp_getset */
+    Solver_getsetters,          /* tp_getset */
     0,                          /* tp_base */
     0,                          /* tp_dict */
     0,                          /* tp_descr_get */

@@ -148,6 +148,25 @@ class InitTester(unittest.TestCase):
         self.assertRaises(TypeError, Solver, time_limit="fail")
         self.assertRaises(TypeError, Solver, confl_limit="fail")
 
+    def test_solver_attributes(self):
+        self.solver = Solver()
+        self.solver.add_clause([-1, 3])
+        self.assertEqual(self.solver.nb_vars, 3)
+        self.assertEqual(self.solver.nb_clauses, 1)
+        self.assertEqual(self.solver.verbose, 0)
+        with self.assertRaises(ValueError):
+            self.solver.verbose = -1
+        with self.assertRaises(ValueError):
+            self.solver.time_limit = -1
+        with self.assertRaises(ValueError):
+            self.solver.confl_limit = -1
+        self.solver.verbose = 15
+        self.assertEqual(self.solver.verbose, 15)
+        self.solver.time_limit = 15
+        self.assertEqual(self.solver.time_limit, 15.0)
+        self.solver.confl_limit = 15
+        self.assertEqual(self.solver.confl_limit, 15)
+
 
 class TestDump(unittest.TestCase):
 
@@ -213,7 +232,7 @@ class TestSolve(unittest.TestCase):
     def test_add_clauses_array_wrong_zero(self):
         cls = array('i', [1, 0, 0])
         self.solver.add_clause(cls)
-        self.assertEqual(self.solver.nb_clauses(), 1)
+        self.assertEqual(self.solver.nb_clauses, 1)
 
     def test_add_clauses_array_SAT(self):
         cls = array('i', [1, 2, 0, 1, 2, 0])

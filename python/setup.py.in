@@ -142,8 +142,10 @@ def _init_posix(init):
             config_vars["CC"] = "gcc"
             config_vars["CXX"] = "g++"
 
-        if config_vars["MACHDEP"].startswith("linux") \
-        or config_vars["MACHDEP"] == "cygwin":
+        if (
+            config_vars["MACHDEP"].startswith("linux")
+            or config_vars["MACHDEP"] == "cygwin"
+        ):
             # Remove GDB specific debug informations
             # Remove -Wstrict-prototypes which is valid for C but not for C++
             for k, v in config_vars.items():

@@ -37,12 +37,7 @@ SOFTWARE.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifdef _MSC_VER
-#include "msvc/stdint.h"
-#else
 #include <stdint.h>
-#endif
 
 #if defined(YALSAT_FPU)
 #include <fpu_control.h>	// Set FPU to double precision on Linux.

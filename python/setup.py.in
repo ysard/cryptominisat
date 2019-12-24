@@ -73,7 +73,10 @@ EXTRA_ARGS = {
                                "-Wno-unused-but-set-variable",
                                "-fvisibility=hidden"],
         "extra_link_args": ["-flto", "-O3", "-Wl,--as-needed"],
-        "define_macros": [("YALSAT_FPU", None),],
+        # YALSAT_FPU: Requires fpu_control.h that is not available
+        # on various platforms (including mingw/cygwin).
+        # See: https://www.gnu.org/software/gnulib/manual/html_node/fpu_005fcontrol_002eh.html
+        "define_macros": [("YALSAT_FPU", None)] if sys.platform == "linux2" else [],
     },
     "unix_darwin": {
         # linking to Clang"s C++ library libc++, rather than GCC"s libstdc++
